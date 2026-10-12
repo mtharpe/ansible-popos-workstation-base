@@ -1,7 +1,0 @@
-{
-    "uuid": "chrome-pwa-grouper@local",
-    "name": "Chrome PWA Profile Grouper",
-    "description": "Groups Chrome PWA windows from multiple profiles under one dock entry by remapping chrome-<crx_id>-Profile_N to chrome-<crx_id>-Default.",
-    "shell-version": ["46", "47", "48", "49", "50"],
-    "url": ""
-}

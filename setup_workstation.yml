@@ -10,7 +10,6 @@
   roles:
     - common
     - third-party
-    - gnome
 
   handlers:
     - name: Import shared handlers

@@ -62,7 +62,3 @@
 - name: Setup kubectl
   ansible.builtin.import_tasks: kubectl.yml
   when: install_kubectl | default(false)
-
-- name: Setup Multipass
-  ansible.builtin.import_tasks: multipass.yml
-  when: install_multipass | default(false)

@@ -1,5 +1,5 @@
 # Variables
-IMAGE_NAME := custom-ubuntu-ansible
+IMAGE_NAME := custom-popos-ansible
 DOCKERFILE := molecule/default/Dockerfile
 ANSIBLE_HOME := $(CURDIR)/.ansible
 XDG_CACHE_HOME := $(CURDIR)/.cache
@@ -7,7 +7,16 @@ MOLECULE_ENV := ANSIBLE_HOME="$(ANSIBLE_HOME)" XDG_CACHE_HOME="$(XDG_CACHE_HOME)
 MOLECULE_GLOB_PODMAN := molecule/default/molecule.yml
 MOLECULE_GLOB_DOCKER := molecule/docker/molecule.yml
 
-.PHONY: all build reset test test-podman test-docker syntax-podman syntax-docker idempotence-podman idempotence-docker check-podman-deps check-docker-deps clean
+.PHONY: lint all build reset test test-podman test-docker syntax-podman syntax-docker idempotence-podman idempotence-docker check-podman-deps check-docker-deps clean
+
+# Static checks: yamllint, ansible-lint, playbook syntax, shellcheck, and the
+# repo's shell-level tests.
+lint:
+	yamllint .
+	ansible-lint .
+	ansible-playbook --syntax-check setup_workstation.yml
+	shellcheck run.sh tests/*.sh
+	tests/no-ubuntu-leftovers.sh
 
 # Default target
 all: build reset test clean

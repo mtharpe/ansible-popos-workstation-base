@@ -15,5 +15,3 @@
   roles:
     - role: common
     - role: third-party
-    - role: gnome
-      when: not common_is_container | default(false)

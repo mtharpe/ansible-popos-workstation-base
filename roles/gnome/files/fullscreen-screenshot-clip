@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-# Full-screen screenshot -> Wayland clipboard. Thin wrapper over the shared
-# portal-screenshot-clip core (the only capture path GNOME 50 permits).
-exec "$HOME/.local/bin/portal-screenshot-clip" --fullscreen

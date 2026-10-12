@@ -42,7 +42,7 @@
     cache_valid_time: 3600
   become: true
 
-# Desktop-only extras: GUI apps + the GNOME configuration tooling.
+# Desktop-only extras: GUI apps.
 # alacritty intentionally NOT here: Ubuntu 24.04 ships 0.13.2, but our
 # alacritty.toml uses the [terminal] / [general] sections introduced in
 # 0.14. We install alacritty from ppa:aslatter/ppa in the third-party
@@ -50,13 +50,10 @@
 - name: Install desktop extras
   ansible.builtin.apt:
     name:
-      - dconf-editor
       - transmission
       - mpv
       - celluloid
       - nextcloud-desktop
-      - gnome-extensions-app
-      - gnome-tweaks
     state: present
     cache_valid_time: 3600
   become: true
@@ -258,37 +255,4 @@
     autoremove: true
   become: true
   failed_when: false
-  when: install_desktop_extras | default(true)
-
-# Ubuntu ships Firefox and Thunderbird as snaps; the apt remove above is a
-# no-op for those, so shadow their .desktop files with NoDisplay overrides
-# in the user's local applications directory. Harmless if a name doesn't
-# resolve to anything system-wide.
-- name: Ensure user applications directory exists
-  ansible.builtin.file:
-    path: /home/{{ local_user }}/.local/share/applications
-    state: directory
-    owner: "{{ local_user }}"
-    group: "{{ local_user }}"
-    mode: "0755"
-  become: true
-  when: install_desktop_extras | default(true)
-
-- name: Hide Firefox and Thunderbird launchers from GNOME Shell
-  ansible.builtin.copy:
-    dest: "/home/{{ local_user }}/.local/share/applications/{{ item }}"
-    owner: "{{ local_user }}"
-    group: "{{ local_user }}"
-    mode: "0644"
-    content: |
-      [Desktop Entry]
-      Type=Application
-      NoDisplay=true
-      Hidden=true
-  loop:
-    - firefox.desktop
-    - firefox_firefox.desktop
-    - firefox-esr.desktop
-    - thunderbird.desktop
-    - thunderbird_thunderbird.desktop
   when: install_desktop_extras | default(true)

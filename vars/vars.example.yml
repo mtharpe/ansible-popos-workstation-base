@@ -22,9 +22,8 @@ local_network: ""
 install_printers: true
 
 # Desktop extras: GUI apps (nextcloud-desktop, celluloid, mpv, transmission),
-# GNOME configuration tools (dconf-editor, gnome-tweaks, gnome-extensions-app),
 # VA-API hardware video accel, GStreamer media codecs, WirePlumber ALSA config,
-# and Firefox/Thunderbird launcher hiding. Set false on headless / WSL boxes.
+# and the junk-app purge. Set false on a headless box.
 install_desktop_extras: true
 
 # Third party
@@ -48,47 +47,12 @@ install_eza: true
 install_claude: true
 install_claude_desktop: true
 install_kubectl: true
-install_multipass: true
-
-# GNOME Shell extensions to install + enable. UUIDs must match
-# extensions.gnome.org. Edit if any UUID needs to change.
-gnome_extensions:
-  - just-perfection-desktop@just-perfection
-  - auto-move-windows@gnome-shell-extensions.gcampax.github.com
-  - power-profile-switcher@fthx
-  - auto-select-headset@krocg
-
-# Hand-written ("local") GNOME Shell extensions whose source trees live in
-# roles/gnome/files/local-extensions/<uuid>/. Synced + enabled by
-# roles/gnome/tasks/local-extensions.yml.
-gnome_local_extensions:
-  - silent-cycle-current-app@local
-  - chrome-pwa-grouper@local
-
-# Custom GNOME keyboard shortcuts, reproduced on every run so a fresh install
-# matches your existing setup. Each entry maps a key binding to a command.
-# The screenshot entries call helper scripts the gnome role installs to
-# ~/.local/bin (they capture to the Wayland clipboard via wl-copy). Leave the
-# list empty to skip custom shortcuts entirely.
-gnome_custom_keybindings:
-  - name: "1Password Quick Access"
-    binding: "<Shift><Control>space"
-    command: "/usr/bin/1password --quick-access"
-  - name: "Open File Manager"
-    binding: "<Super>e"
-    command: "nautilus --new-window"
-  - name: "Area Screenshot (to clipboard)"
-    binding: "<Shift><Alt>4"
-    command: "/home/{{ local_user }}/.local/bin/area-screenshot-clip"
-  - name: "Fullscreen Screenshot (to clipboard)"
-    binding: "<Shift><Alt>3"
-    command: "/home/{{ local_user }}/.local/bin/fullscreen-screenshot-clip"
 
 # python3
 ansible_python_interpreter: /usr/bin/python3
 
-# Ubuntu target version (used for pinning images / docs)
-ubuntu_version: "24.04"
+# Pop!_OS target version, checked by roles/common/tasks/preflight.yml.
+popos_version: "24.04"
 
 # Header stamped into rendered config files via `{{ ansible_managed }}`.
 # Replaces the deprecated DEFAULT_MANAGED_STR setting in ansible.cfg.
