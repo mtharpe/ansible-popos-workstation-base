@@ -1,0 +1,15 @@
+---
+# Runs the cosmic role's config writers against a temp dir on the dev machine.
+# Driven by tests/cosmic-local.sh, which passes cosmic_config_home, local_user,
+# ansible_become=false and a --tags filter.
+- name: Exercise cosmic config writers locally
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../vars/vars.example.yml
+  vars:
+    popos_skip_preflight: true
+    common_is_container: true
+  roles:
+    - role: cosmic

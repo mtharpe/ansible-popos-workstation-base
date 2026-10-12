@@ -24,10 +24,21 @@ SUDOERS_DROPIN="/etc/sudoers.d/${USER}"
 if [ ! -f "${SUDOERS_DROPIN}" ]; then
   echo "${USER} ALL=(ALL) NOPASSWD: ALL" | sudo tee -a "${SUDOERS_DROPIN}"
 fi
+# Remove the passwordless-sudo drop-in however this script exits.
+trap 'sudo rm -f "${SUDOERS_DROPIN}"' EXIT
 
+# Retry a few times for flaky mirrors, but stop: the playbook also fails on
+# purpose (wrong host, a junk purge that would remove the desktop), and those
+# don't fix themselves.
+RUN_RETRIES="${RUN_RETRIES:-3}"
+RUN_RETRY_DELAY="${RUN_RETRY_DELAY:-10}"
+attempt=1
 until ansible-playbook --extra-vars "local_user=${USER}" setup_workstation.yml; do
-  echo "Ansible run disrupted, retrying in 10 seconds..."
-  sleep 10
+  if [ "${attempt}" -ge "${RUN_RETRIES}" ]; then
+    echo "Ansible run failed ${attempt} times; giving up. Fix the error above and re-run." >&2
+    exit 1
+  fi
+  attempt=$((attempt + 1))
+  echo "Ansible run disrupted, retrying in ${RUN_RETRY_DELAY} seconds (attempt ${attempt}/${RUN_RETRIES})..."
+  sleep "${RUN_RETRY_DELAY}"
 done
-
-sudo rm -f "${SUDOERS_DROPIN}"

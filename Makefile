@@ -17,6 +17,9 @@ lint:
 	ansible-playbook --syntax-check setup_workstation.yml
 	shellcheck run.sh scripts/*.sh tests/*.sh
 	tests/vm-test-dryrun.sh
+	tests/run-sh-retry.sh
+	tests/cosmic-local.sh
+	ansible-playbook tests/static-checks.yml
 	tests/no-ubuntu-leftovers.sh
 
 # Default target

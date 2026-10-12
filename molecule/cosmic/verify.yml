@@ -130,3 +130,22 @@
     - name: Assert the pinned Satty is installed
       ansible.builtin.assert:
         that: verify_satty.stdout is search(' ' ~ (satty_version | regex_escape) ~ '$', multiline=True)
+
+    - name: Copy the Satty argv checker into the instance
+      ansible.builtin.copy:
+        src: ../../tests/satty-args-check.py
+        dest: /tmp/satty-args-check.py
+        mode: "0755"
+
+    # The annotate helper ignores Satty's exit status, so bad arguments would
+    # make Shift+Alt+4 silently do nothing.
+    - name: Run Satty with the annotate helper's arguments
+      ansible.builtin.command: python3 /tmp/satty-args-check.py /home/{{ local_user }}/.local/bin/area-screenshot-annotate
+      register: verify_satty_args
+      changed_when: false
+      failed_when: false
+
+    - name: Assert Satty accepts the annotate helper's arguments
+      ansible.builtin.assert:
+        that: verify_satty_args.rc == 0
+        fail_msg: "{{ verify_satty_args.stdout }} => {{ verify_satty_args.stderr }}"

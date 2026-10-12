@@ -2,7 +2,11 @@
 # Panel/dock/tiling. COSMIC lists its panels by name in CosmicPanel's
 # `entries`; dropping "Dock" removes the dock without touching the panel.
 - name: Apply panel, dock and tiling layout
-  ansible.builtin.include_tasks: settings.yml
+  ansible.builtin.include_tasks:
+    file: settings.yml
+    apply:
+      tags: [cosmic, layout]
+  tags: [cosmic, layout]
   vars:
     cosmic_settings_batch:
       - component: com.system76.CosmicPanel

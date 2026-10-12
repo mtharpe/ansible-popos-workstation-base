@@ -13,8 +13,13 @@
   when: not popos_skip_preflight | default(false)
   tags: [cosmic]
 
+# include_tasks tags only gate the include itself; `apply` carries them to
+# the tasks inside so --tags runs still write the files.
 - name: Apply COSMIC settings
-  ansible.builtin.include_tasks: settings.yml
+  ansible.builtin.include_tasks:
+    file: settings.yml
+    apply:
+      tags: [cosmic, settings]
   vars:
     cosmic_settings_batch: "{{ cosmic_settings }}"
   tags: [cosmic, settings]
@@ -25,7 +30,6 @@
 
 - name: Apply custom keyboard shortcuts
   ansible.builtin.import_tasks: keybindings.yml
-  when: cosmic_custom_keybindings | default([]) | length > 0
   tags: [cosmic, keybindings]
 
 - name: Dark mode across GTK2/3/4, Qt and Electron

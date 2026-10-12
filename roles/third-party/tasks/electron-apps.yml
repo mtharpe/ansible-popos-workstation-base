@@ -77,6 +77,8 @@
       ./build-linux.sh {{ electron_apps_slugs | map('quote') | join(' ') }}
       printf '%s\n' {{ thirdparty_electron_apps_clone.after | quote }} > {{ (electron_apps_prefix ~ '/lib/.electron-apps-revision') | quote }}
     chdir: "{{ electron_apps_src }}"
+    # /bin/sh is dash on Pop!_OS, which has no pipefail.
+    executable: /bin/bash
   environment:
     PREFIX: "{{ electron_apps_prefix }}"
   become: true

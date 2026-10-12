@@ -35,7 +35,7 @@ same tools, apps and shell setup, with the GNOME pieces translated to COSMIC.
 3. Log out and back in (environment variables and some COSMIC applets only reload at login).
 4. If Twingate is enabled: `twingate setup`.
 
-`run.sh` installs Ansible via pipx, adds a temporary passwordless-sudo drop-in, retries the playbook until it succeeds, then removes the drop-in. It needs ansible-core 2.19 or newer (pipx installs the latest).
+`run.sh` installs Ansible via pipx, adds a temporary passwordless-sudo drop-in, runs the playbook (up to `RUN_RETRIES`, default 3, attempts for flaky mirrors), and removes the drop-in however it exits. It needs ansible-core 2.19 or newer (pipx installs the latest).
 
 ## Customising COSMIC
 
@@ -76,7 +76,7 @@ Satty is pinned to 0.20.1: newer release binaries need glibc 2.43 and Pop!_OS
 
 ## Testing
 
-- `make lint` — yamllint, ansible-lint, playbook syntax check, shellcheck, `tests/no-ubuntu-leftovers.sh`, `tests/vm-test-dryrun.sh`
+- `make lint` — yamllint, ansible-lint, playbook syntax check, shellcheck, and the local tests in `tests/`: leftovers, VM-script dry run, `run.sh` retry cap, cosmic config writers under `--tags` and with an empty shortcut list, and a static check that `pipefail` shell tasks run under bash
 - `make test-docker` — Molecule converge + idempotence + verify of `common` and `third-party` on an Ubuntu 24.04 (amd64) container, including the junk-purge guard and the Twingate repo
 - `make test-cosmic` — Molecule for the `cosmic` role: config files and ownership, layout, shortcuts, theming, Colloid icons, screenshot helpers and Satty
 - `ANSIBLE_ROLES_PATH=roles ansible-playbook tests/preflight.yml` — must fail on a non-Pop host

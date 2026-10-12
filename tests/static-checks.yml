@@ -1,0 +1,46 @@
+---
+# Static checks over the role task files. Run from the repo root:
+#   ansible-playbook tests/static-checks.yml
+- name: Static checks
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Find role task files
+      ansible.builtin.find:
+        paths: "{{ playbook_dir }}/../roles"
+        patterns: "*.yml"
+        recurse: true
+      register: static_found
+
+    - name: Keep only files under tasks/
+      ansible.builtin.set_fact:
+        task_files: "{{ static_found.files | map(attribute='path') | select('search', '/tasks/') | list }}"
+
+    # Guard against a vacuous pass if the search ever stops matching.
+    - name: Assert task files were found
+      ansible.builtin.assert:
+        that: task_files | length > 10
+
+    # /bin/sh is dash on Pop!_OS/noble, and dash 0.5.12 has no pipefail: a
+    # shell task that sets it must run under bash.
+    - name: Collect shell tasks that use pipefail without bash
+      ansible.builtin.set_fact:
+        static_pipefail_offenders: >-
+          {%- set out = [] -%}
+          {%- for f in task_files -%}
+          {%- for t in (lookup('file', f) | from_yaml) or [] -%}
+          {%- set sh = t.get('ansible.builtin.shell') or t.get('shell') -%}
+          {%- if sh is not none -%}
+          {%- set cmd = sh if sh is string else (sh.get('cmd') or '') -%}
+          {%- set exe = (sh.get('executable') if sh is mapping else none) or (t.get('args') or {}).get('executable') -%}
+          {%- if 'pipefail' in cmd and exe != '/bin/bash' -%}{{ out.append((f | basename) ~ ': ' ~ t.name) }}{%- endif -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {%- endfor -%}
+          {{ out | join(', ') }}
+
+    - name: Assert every pipefail shell task runs under bash
+      ansible.builtin.assert:
+        that: static_pipefail_offenders | trim == ''
+        fail_msg: "pipefail under /bin/sh (dash): {{ static_pipefail_offenders }}"

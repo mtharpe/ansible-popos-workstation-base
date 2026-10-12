@@ -159,7 +159,10 @@
   tags: [cosmic, icon-theme]
 
 - name: Select the icon theme in COSMIC
-  ansible.builtin.include_tasks: settings.yml
+  ansible.builtin.include_tasks:
+    file: settings.yml
+    apply:
+      tags: [cosmic, icon-theme]
   vars:
     cosmic_settings_batch:
       - component: com.system76.CosmicTk
