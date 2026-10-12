@@ -62,3 +62,15 @@
 - name: Setup kubectl
   ansible.builtin.import_tasks: kubectl.yml
   when: install_kubectl | default(false)
+
+- name: Setup Twingate
+  ansible.builtin.import_tasks: twingate.yml
+  when: install_twingate | default(false)
+
+- name: Setup Cider
+  ansible.builtin.import_tasks: cider.yml
+  when: install_cider | default(false)
+
+- name: Setup Electron web apps
+  ansible.builtin.import_tasks: electron-apps.yml
+  when: install_electron_apps | default(false)

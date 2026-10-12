@@ -78,10 +78,11 @@
     set -o pipefail
     matches="$(find /usr/share/icons /usr/share/pixmaps -maxdepth 6 \
         \( -name 'org.gnome.Ptyxis.*' -o -name 'org.gnome.Console.*' \
-           -o -name 'org.gnome.Terminal.*' -o -name 'Alacritty.*' \
+           -o -name 'org.gnome.Terminal.*' -o -name 'com.system76.CosmicTerm.*' \
+           -o -name 'Alacritty.*' \
            -o -name 'utilities-terminal.*' \) \
         -printf '%f\n' 2>/dev/null | sort -u)"
-    for name in org.gnome.Ptyxis org.gnome.Console org.gnome.Terminal Alacritty utilities-terminal; do
+    for name in com.system76.CosmicTerm org.gnome.Ptyxis org.gnome.Console org.gnome.Terminal Alacritty utilities-terminal; do
       if echo "${matches}" | grep -q "^${name}\."; then
         echo "${name}"
         break
@@ -126,7 +127,7 @@
 # overrides flagged NoDisplay/Hidden. This survives package updates
 # (unlike renaming the system .desktop) and avoids confusion with the
 # Alacritty launcher we ship as "Terminal".
-- name: Hide default distro terminal launchers from GNOME Shell
+- name: Hide default distro terminal launchers
   ansible.builtin.copy:
     dest: "/home/{{ local_user }}/.local/share/applications/{{ item }}"
     owner: "{{ local_user }}"
@@ -138,6 +139,7 @@
       NoDisplay=true
       Hidden=true
   loop:
+    - com.system76.CosmicTerm.desktop
     - org.gnome.Terminal.desktop
     - org.gnome.Console.desktop
     - org.gnome.Ptyxis.desktop

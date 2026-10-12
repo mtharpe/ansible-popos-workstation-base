@@ -1,7 +1,7 @@
 ---
 - name: Determine if eza is available via apt (Ubuntu 24.10+)
   ansible.builtin.set_fact:
-    eza_apt_available: "{{ (ansible_facts['distribution'] | default('')) == 'Ubuntu' and
+    eza_apt_available: "{{ (ansible_facts['distribution'] | default('')) in ['Ubuntu', 'Pop!_OS'] and
       (ansible_facts['distribution_version'] | default('0') | replace('.', '') | int) >= 2410 }}"
   tags: [third_party, eza]
 

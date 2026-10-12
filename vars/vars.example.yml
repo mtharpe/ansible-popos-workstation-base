@@ -63,6 +63,12 @@ install_slack: true
 install_spotify: false
 install_vscode: true
 install_zoom: true
+# Cider — Apple Music client, installed as the sh.cider.Cider flatpak.
+install_cider: true
+# Twingate zero-trust client, from Twingate's signed apt repo.
+# After install, run `twingate setup` once to join a network.
+install_twingate: true
+twingate_repo_url: "https://packages.twingate.com/apt/"
 install_lutris: false
 install_steam: false
 install_docker: false
@@ -78,6 +84,25 @@ install_eza: true
 install_claude: true
 install_claude_desktop: true
 install_kubectl: true
+
+# Standalone Electron web apps built from https://github.com/mtharpe/electron-apps
+# and installed under ~/.local. First run downloads Electron and packages every
+# slug below, so it is slow; later runs skip the build unless the checkout
+# moved or an app is missing.
+install_electron_apps: true
+electron_apps_repo: https://github.com/mtharpe/electron-apps.git
+electron_apps_version: main
+electron_apps_src: "/home/{{ local_user }}/.local/src/electron-apps"
+electron_apps_prefix: "/home/{{ local_user }}/.local"
+# Authoritative build list (passed to build-linux.sh). Keep in step with
+# colloid_extra_icons / colloid_icon_aliases in the cosmic section.
+electron_apps_slugs:
+  - gmail
+  - google-calendar
+  - google-tasks
+  - google-keep
+  - google-messages
+  - messenger
 
 # python3
 ansible_python_interpreter: /usr/bin/python3

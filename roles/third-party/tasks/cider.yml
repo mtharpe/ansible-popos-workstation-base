@@ -1,0 +1,22 @@
+---
+# Cider — Apple Music client. Upstream ships no deb; the sanctioned Linux
+# install path is the Flathub flatpak (`sh.cider.Cider`). Pop!_OS ships
+# Flatpak with Flathub configured, but the remote is still ensured here so the
+# task doesn't depend on that default.
+
+- name: Ensure the flathub remote is available (system)
+  community.general.flatpak_remote:
+    name: flathub
+    flatpakrepo_url: https://flathub.org/repo/flathub.flatpakrepo
+    state: present
+    method: system
+  become: true
+  tags: [third_party, cider]
+
+- name: Install Cider
+  community.general.flatpak:
+    name: sh.cider.Cider
+    state: present
+    method: system
+  become: true
+  tags: [third_party, cider]

@@ -39,3 +39,13 @@
     - name: Assert python3 survived
       ansible.builtin.assert:
         that: verify_python3.stdout is match('ii')
+
+    - name: Read the Twingate apt candidate
+      ansible.builtin.command: apt-cache policy twingate
+      register: verify_twingate_policy
+      changed_when: false
+
+    - name: Assert the Twingate repo resolves a candidate
+      ansible.builtin.assert:
+        that: verify_twingate_policy.stdout is search('Candidate:\s+(?!\(none\))\S+')
+        fail_msg: "{{ verify_twingate_policy.stdout }}"

@@ -1,4 +1,20 @@
 ---
+# Pop!_OS manages CPU governors and power profiles with system76-power.
+# auto-cpufreq fights it for the same knobs, so refuse rather than install a
+# second power manager.
+- name: Gather service state
+  ansible.builtin.service_facts:
+  tags: [third_party, autocpu]
+
+- name: Refuse auto-cpufreq alongside system76-power
+  ansible.builtin.assert:
+    that: >-
+      (ansible_facts.services['system76-power.service'] | default({})).get('state') != 'running'
+    fail_msg: >-
+      install_autocpu is true but system76-power is active. Pop!_OS already
+      manages CPU power; set install_autocpu: false.
+  tags: [third_party, autocpu]
+
 - name: Remove conflicting Auto-CPUFreq snap
   ansible.builtin.include_tasks:
     file: remove-snap.yml
