@@ -81,6 +81,7 @@ jobs:
             # templates we DEPLOY (e.g. fish_aliases.sh is a fish script that
             # shellcheck doesn't understand).
             shellcheck run.sh
+            shellcheck tests/*.sh
             find . -name '*.sh' \
               -not -path './.git/*' \
               -not -path './.ansible/*' \

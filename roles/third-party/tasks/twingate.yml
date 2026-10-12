@@ -1,0 +1,73 @@
+---
+# Twingate zero-trust client, from Twingate's signed apt repo — the same
+# key, keyring path and source line its own installer
+# (binaries.twingate.com/client/linux/install.sh) writes.
+#
+# Installing only lays down the client; `twingate setup` still has to be run
+# once interactively to join a network.
+
+- name: Probe Twingate apt repo
+  ansible.builtin.uri:
+    url: "{{ twingate_repo_url }}gpg.key"
+    method: HEAD
+    status_code: [200, 301, 302]
+  register: thirdparty_twingate_probe
+  failed_when: false
+  changed_when: false
+  tags: [third_party, twingate]
+
+- name: Note unreachable Twingate repo
+  ansible.builtin.debug:
+    msg: "Twingate apt repo unreachable — skipping."
+  when: thirdparty_twingate_probe.status | default(0) != 200
+  tags: [third_party, twingate]
+
+- name: Fetch Twingate signing key
+  ansible.builtin.get_url:
+    url: "{{ twingate_repo_url }}gpg.key"
+    dest: /tmp/twingate-client-keyring.asc
+    mode: "0644"
+    force: false
+  become: true
+  when: thirdparty_twingate_probe.status | default(0) == 200
+  tags: [third_party, twingate]
+
+- name: Install Twingate signing key (dearmored)
+  ansible.builtin.shell:
+    cmd: gpg --dearmor < /tmp/twingate-client-keyring.asc > /usr/share/keyrings/twingate-client-keyring.gpg
+    creates: /usr/share/keyrings/twingate-client-keyring.gpg
+  become: true
+  when: thirdparty_twingate_probe.status | default(0) == 200
+  tags: [third_party, twingate]
+
+- name: Add Twingate apt repository
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/twingate.list
+    content: "deb [signed-by=/usr/share/keyrings/twingate-client-keyring.gpg] {{ twingate_repo_url }} * *\n"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  register: thirdparty_twingate_repo
+  when: thirdparty_twingate_probe.status | default(0) == 200
+  tags: [third_party, twingate]
+
+# A task, not a handler: the install below needs the fresh index in this run.
+- name: Refresh apt metadata for Twingate  # noqa: no-handler
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+  changed_when: false
+  when: thirdparty_twingate_repo is changed
+  tags: [third_party, twingate]
+
+# Not in containers: the package's postinst manages a systemd unit.
+- name: Install Twingate
+  ansible.builtin.apt:
+    name: twingate
+    state: present
+  become: true
+  when:
+    - thirdparty_twingate_probe.status | default(0) == 200
+    - not common_is_container | default(false)
+  tags: [third_party, twingate]

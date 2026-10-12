@@ -1,8 +1,0 @@
-{
-    "uuid": "silent-cycle-current-app@local",
-    "name": "Silent Cycle Within Current App",
-    "description": "Replaces Alt+~ (switch-group) with silent in-app window cycling: no popup, just activates the next/prev window of the current app on the current workspace. No-op if only one window.",
-    "shell-version": ["46", "47", "48"],
-    "settings-schema": "org.gnome.shell.extensions.silent-cycle-current-app",
-    "url": ""
-}

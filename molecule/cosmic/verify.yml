@@ -1,0 +1,151 @@
+---
+- name: Verify the cosmic role
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../vars/vars.example.yml
+  vars:
+    shortcuts_file: "{{ cosmic_config_home }}/com.system76.CosmicSettings.Shortcuts/v1/custom"
+  tasks:
+    - name: Read each configured setting
+      ansible.builtin.slurp:
+        src: "{{ cosmic_config_home }}/{{ item.component }}/v{{ item.version }}/{{ item.key }}"
+      loop: "{{ cosmic_settings }}"
+      loop_control:
+        label: "{{ item.component }}/{{ item.key }}"
+      register: verify_settings
+
+    - name: Assert each setting file holds exactly its RON value
+      ansible.builtin.assert:
+        that: (item.content | b64decode) == item.item.value
+        fail_msg: "{{ item.item.key }}: got {{ item.content | b64decode }}"
+      loop: "{{ verify_settings.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Read panel entries and autotile
+      ansible.builtin.slurp:
+        src: "{{ cosmic_config_home }}/{{ item }}"
+      loop:
+        - com.system76.CosmicPanel/v1/entries
+        - com.system76.CosmicComp/v1/autotile
+      register: verify_layout
+
+    - name: Assert panel only, no dock, tiling off
+      ansible.builtin.assert:
+        that:
+          - (verify_layout.results[0].content | b64decode) == '["Panel"]'
+          - (verify_layout.results[1].content | b64decode) == 'false'
+
+    - name: Read the custom shortcuts file
+      ansible.builtin.slurp:
+        src: "{{ shortcuts_file }}"
+      register: verify_shortcuts
+
+    - name: Assert the file manager shortcut is rendered
+      ansible.builtin.assert:
+        that: >-
+          (verify_shortcuts.content | b64decode) is search(
+          '\(modifiers: \[Super\], key: "e", description: Some\("Open File Manager"\)\): Spawn\("cosmic-files"\),')
+
+    # Review Focus 2: root-owned config means COSMIC can't save GUI changes.
+    - name: Find anything under ~/.config/cosmic not owned by the user
+      ansible.builtin.command: find /home/{{ local_user }}/.config/cosmic ! -user {{ local_user }}
+      register: verify_foreign
+      changed_when: false
+
+    - name: Assert everything is owned by the user
+      ansible.builtin.assert:
+        that: verify_foreign.stdout == ''
+        fail_msg: "Not owned by {{ local_user }}: {{ verify_foreign.stdout }}"
+
+    - name: Read the COSMIC icon theme setting
+      ansible.builtin.slurp:
+        src: "{{ cosmic_config_home }}/com.system76.CosmicTk/v1/icon_theme"
+      register: verify_icon_theme
+
+    - name: Assert Colloid is selected
+      ansible.builtin.assert:
+        that: (verify_icon_theme.content | b64decode) == '"' ~ cosmic_icon_theme ~ '"'
+
+    - name: Check theme, extras and aliases are on disk
+      ansible.builtin.stat:
+        path: "{{ colloid_icon_dest }}/{{ item }}"
+      loop:
+        - "{{ cosmic_icon_theme }}/index.theme"
+        - Colloid-Light/apps/scalable/google-keep.svg
+        - Colloid-Light/apps/scalable/sh.cider.Cider.svg
+      register: verify_icons
+
+    - name: Assert icons are installed
+      ansible.builtin.assert:
+        that: item.stat.exists
+        fail_msg: "missing {{ item.item }}"
+      loop: "{{ verify_icons.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read GTK3 settings.ini and environment.d
+      ansible.builtin.slurp:
+        src: "/home/{{ local_user }}/{{ item }}"
+      loop:
+        - .config/gtk-3.0/settings.ini
+        - .config/environment.d/90-dark-mode.conf
+      register: verify_dark
+
+    - name: Assert GTK3 and Qt are pointed at dark
+      ansible.builtin.assert:
+        that:
+          - (verify_dark.results[0].content | b64decode) is search('gtk-theme-name = adw-gtk3-dark')
+          - (verify_dark.results[1].content | b64decode) is search('QT_QPA_PLATFORMTHEME=gtk3')
+
+    - name: Check the screenshot helpers are installed and executable
+      ansible.builtin.stat:
+        path: "/home/{{ local_user }}/.local/bin/{{ item }}"
+      loop:
+        - portal-screenshot-clip
+        - area-screenshot-clip
+        - fullscreen-screenshot-clip
+        - area-screenshot-annotate
+      register: verify_helpers
+
+    - name: Assert helpers exist, are executable and user-owned
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.executable
+          - item.stat.pw_name == local_user
+        fail_msg: "{{ item.item }}"
+      loop: "{{ verify_helpers.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # Proves the upstream binary links against this release's GTK4/libadwaita.
+    - name: Run satty --version
+      ansible.builtin.command: /usr/local/bin/satty --version
+      register: verify_satty
+      changed_when: false
+
+    - name: Assert the pinned Satty is installed
+      ansible.builtin.assert:
+        that: verify_satty.stdout is search(' ' ~ (satty_version | regex_escape) ~ '$', multiline=True)
+
+    - name: Copy the Satty argv checker into the instance
+      ansible.builtin.copy:
+        src: ../../tests/satty-args-check.py
+        dest: /tmp/satty-args-check.py
+        mode: "0755"
+
+    # The annotate helper ignores Satty's exit status, so bad arguments would
+    # make Shift+Alt+4 silently do nothing.
+    - name: Run Satty with the annotate helper's arguments
+      ansible.builtin.command: python3 /tmp/satty-args-check.py /home/{{ local_user }}/.local/bin/area-screenshot-annotate
+      register: verify_satty_args
+      changed_when: false
+      failed_when: false
+
+    - name: Assert Satty accepts the annotate helper's arguments
+      ansible.builtin.assert:
+        that: verify_satty_args.rc == 0
+        fail_msg: "{{ verify_satty_args.stdout }} => {{ verify_satty_args.stderr }}"

@@ -1,0 +1,141 @@
+---
+# COSMIC's own dark mode (CosmicTheme.Mode/is_dark, set via cosmic_settings)
+# reaches COSMIC apps and libadwaita apps through the settings portal.
+# Everything else needs help:
+#   - GTK3 apps read gtk-theme-name; adw-gtk3-dark is a theme whose CSS is dark
+#     unconditionally, so CSS-reading consumers (libqgtk3, CEF) see dark too.
+#   - GTK2 apps read ~/.gtkrc-2.0.
+#   - Qt apps take their palette from the GTK3 theme via QT_QPA_PLATFORMTHEME=gtk3.
+#   - Electron apps run under XWayland by default and draw a light titlebar;
+#     ELECTRON_OZONE_PLATFORM_HINT=auto runs them natively on Wayland.
+# The candidate-package probe exists because availability changes between
+# releases; install what this release ships, report the rest.
+- name: Probe which dark-mode integration packages this release ships
+  ansible.builtin.command: "apt-cache show --no-all-versions {{ item }}"
+  loop: "{{ cosmic_darkmode_candidate_pkgs }}"
+  register: cosmic_darkmode_pkg_probe
+  changed_when: false
+  failed_when: false
+  tags: [cosmic, dark-mode]
+
+- name: Partition dark-mode packages into available vs missing
+  ansible.builtin.set_fact:
+    cosmic_darkmode_pkgs_available: "{{ cosmic_darkmode_pkg_probe.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list }}"
+    cosmic_darkmode_pkgs_missing: "{{ cosmic_darkmode_pkg_probe.results | rejectattr('rc', 'equalto', 0) | map(attribute='item') | list }}"
+  tags: [cosmic, dark-mode]
+
+- name: Note dark-mode packages not shipped by this release
+  ansible.builtin.debug:
+    msg: "Skipping theming packages not in this release's repos: {{ cosmic_darkmode_pkgs_missing | join(', ') }}"
+  when: cosmic_darkmode_pkgs_missing | length > 0
+  tags: [cosmic, dark-mode]
+
+- name: Install available dark-mode integration packages
+  ansible.builtin.apt:
+    name: "{{ cosmic_darkmode_pkgs_available }}"
+    state: present
+  become: true
+  when: cosmic_darkmode_pkgs_available | length > 0
+  tags: [cosmic, dark-mode]
+
+- name: Ensure GTK and environment.d config directories exist
+  ansible.builtin.file:
+    path: "/home/{{ local_user }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  become: true
+  become_user: "{{ local_user }}"
+  loop:
+    - .config/gtk-3.0
+    - .config/gtk-4.0
+    - .config/environment.d
+  tags: [cosmic, dark-mode]
+
+- name: Configure GTK2 dark theme (~/.gtkrc-2.0)
+  ansible.builtin.copy:
+    dest: "/home/{{ local_user }}/.gtkrc-2.0"
+    mode: "0644"
+    content: |
+      # {{ ansible_managed }}
+      gtk-theme-name = "adw-gtk3-dark"
+      gtk-icon-theme-name = "{{ cosmic_icon_theme if install_colloid_icons | default(false) else 'Adwaita' }}"
+      gtk-cursor-theme-name = "Adwaita"
+      gtk-cursor-theme-size = {{ cosmic_cursor_size }}
+  become: true
+  become_user: "{{ local_user }}"
+  tags: [cosmic, dark-mode]
+
+- name: Configure GTK3 dark theme (~/.config/gtk-3.0/settings.ini)
+  ansible.builtin.copy:
+    dest: "/home/{{ local_user }}/.config/gtk-3.0/settings.ini"
+    mode: "0644"
+    content: |
+      # {{ ansible_managed }}
+      [Settings]
+      gtk-application-prefer-dark-theme = 1
+      gtk-theme-name = adw-gtk3-dark
+      gtk-icon-theme-name = {{ cosmic_icon_theme if install_colloid_icons | default(false) else 'Adwaita' }}
+      gtk-cursor-theme-name = Adwaita
+      gtk-cursor-theme-size = {{ cosmic_cursor_size }}
+  become: true
+  become_user: "{{ local_user }}"
+  tags: [cosmic, dark-mode]
+
+- name: Configure GTK4 dark theme preference (~/.config/gtk-4.0/settings.ini)
+  ansible.builtin.copy:
+    dest: "/home/{{ local_user }}/.config/gtk-4.0/settings.ini"
+    mode: "0644"
+    content: |
+      # {{ ansible_managed }}
+      [Settings]
+      gtk-application-prefer-dark-theme = 1
+      gtk-icon-theme-name = {{ cosmic_icon_theme if install_colloid_icons | default(false) else 'Adwaita' }}
+      gtk-cursor-theme-name = Adwaita
+      gtk-cursor-theme-size = {{ cosmic_cursor_size }}
+  become: true
+  become_user: "{{ local_user }}"
+  tags: [cosmic, dark-mode]
+
+- name: Route Qt and Electron apps at dark-aware integrations (system)
+  ansible.builtin.lineinfile:
+    path: /etc/environment
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    state: present
+    create: true
+    mode: "0644"
+  become: true
+  loop: "{{ cosmic_darkmode_env | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  tags: [cosmic, dark-mode]
+
+- name: Route Qt and Electron apps at dark-aware integrations (user session)
+  ansible.builtin.copy:
+    dest: "/home/{{ local_user }}/.config/environment.d/90-dark-mode.conf"
+    mode: "0644"
+    content: |
+      # {{ ansible_managed }}
+      {% for key, value in cosmic_darkmode_env | dictsort %}
+      {{ key }}={{ value }}
+      {% endfor %}
+  become: true
+  become_user: "{{ local_user }}"
+  tags: [cosmic, dark-mode]
+
+# GTK3 apps on Wayland and the GNOME portal backends still read these
+# gsettings keys. Needs a dconf database, so not in containers.
+- name: Point GNOME interface settings at dark
+  community.general.dconf:
+    key: "{{ item.k }}"
+    value: "{{ item.v }}"
+    state: present
+  become: true
+  become_user: "{{ local_user }}"
+  loop:
+    - { k: /org/gnome/desktop/interface/color-scheme, v: "'prefer-dark'" }
+    - { k: /org/gnome/desktop/interface/gtk-theme, v: "'adw-gtk3-dark'" }
+    - k: /org/gnome/desktop/interface/icon-theme
+      v: "'{{ cosmic_icon_theme if install_colloid_icons | default(false) else 'Adwaita' }}'"
+  when: not common_is_container | default(false)
+  tags: [cosmic, dark-mode]

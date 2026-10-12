@@ -1,12 +1,11 @@
 galaxy_info:
-  role_name: ubuntu_workstation_base   # use underscores, not dashes
+  role_name: popos_workstation_base   # use underscores, not dashes
   namespace: mtharpe            # use your Galaxy namespace or GitHub username
-  author: your_name
-  description: Ubuntu Workstation Base Role
-  company: your_company
+  author: Michael Tharpe
+  description: Pop!_OS 24.04 (COSMIC) Workstation Base
   license: MIT
   min_ansible_version: "2.10"
   platforms:
     - name: Ubuntu
       versions:
-        - all
+        - noble

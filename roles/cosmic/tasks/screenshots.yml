@@ -1,0 +1,83 @@
+---
+# Screenshot helpers bound by cosmic_custom_keybindings. Capture goes through
+# the xdg-desktop-portal Screenshot interface (xdg-desktop-portal-cosmic);
+# wl-copy puts the PNG on the Wayland clipboard; Satty annotates area grabs.
+- name: Install screenshot helper dependencies
+  ansible.builtin.apt:
+    name:
+      - python3-gi                 # PyGObject (Gio/GLib) for the portal D-Bus call
+      - wl-clipboard               # wl-copy
+      - libgtk-4-1                 # Satty runtime
+      - libadwaita-1-0             # Satty runtime
+    state: present
+  become: true
+  tags: [cosmic, screenshot]
+
+# Pop!_OS ships this; listed separately because the ubuntu:24.04 test
+# container's repos don't carry it.
+- name: Install the COSMIC portal backend
+  ansible.builtin.apt:
+    name: xdg-desktop-portal-cosmic
+    state: present
+  become: true
+  when: not common_is_container | default(false)
+  tags: [cosmic, screenshot]
+
+# Older releases print `satty_cli <version>`, newer `satty <version>`; match
+# on the version alone.
+- name: Check installed Satty version
+  ansible.builtin.command: /usr/local/bin/satty --version
+  register: cosmic_satty_installed
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  tags: [cosmic, screenshot, satty]
+
+- name: Download Satty release tarball
+  ansible.builtin.get_url:
+    url: "https://github.com/gabm/Satty/releases/download/v{{ satty_version }}/satty-x86_64-unknown-linux-gnu.tar.gz"
+    dest: "/tmp/satty-{{ satty_version }}.tar.gz"
+    checksum: "sha256:{{ satty_sha256 }}"
+    mode: "0644"
+  when: cosmic_satty_installed.stdout | default('') is not search(' ' ~ (satty_version | regex_escape) ~ '$', multiline=True)
+  tags: [cosmic, screenshot, satty]
+
+- name: Install Satty binary to /usr/local/bin
+  ansible.builtin.unarchive:
+    src: "/tmp/satty-{{ satty_version }}.tar.gz"
+    dest: /usr/local/bin/
+    # Upstream tarball members are ./-prefixed; GNU tar matches literally.
+    include: [./satty]
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  when: cosmic_satty_installed.stdout | default('') is not search(' ' ~ (satty_version | regex_escape) ~ '$', multiline=True)
+  tags: [cosmic, screenshot, satty]
+
+- name: Ensure ~/.local/bin and ~/Pictures/Screenshots exist
+  ansible.builtin.file:
+    path: "/home/{{ local_user }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  become: true
+  become_user: "{{ local_user }}"
+  loop:
+    - .local/bin
+    - Pictures/Screenshots
+  tags: [cosmic, screenshot]
+
+- name: Install screenshot helper scripts
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/home/{{ local_user }}/.local/bin/{{ item }}"
+    mode: "0755"
+  become: true
+  become_user: "{{ local_user }}"
+  loop:
+    - portal-screenshot-clip      # shared core: drives the portal Screenshot call
+    - area-screenshot-clip        # wrapper -> core --interactive
+    - fullscreen-screenshot-clip  # wrapper -> core --fullscreen
+    - area-screenshot-annotate    # capture -> pipe into Satty for annotation
+  tags: [cosmic, screenshot]

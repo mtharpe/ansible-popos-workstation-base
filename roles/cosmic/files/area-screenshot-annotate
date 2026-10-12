@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+"""Interactive area screenshot -> Satty for annotation.
+
+Captures a screen region via the xdg-desktop-portal Screenshot interface,
+which xdg-desktop-portal-cosmic implements on COSMIC (interactive=True shows
+COSMIC's own region/window/screen picker), and pipes the resulting PNG into
+Satty. Satty pops up with its drawing overlay so
+arrows, highlights, text, blur, etc. can be added before saving.
+
+Save destination: ~/Pictures/Screenshots/satty-YYYYMMDD-HHMMSS.png
+Copy shortcut inside Satty: uses wl-copy (Wayland clipboard).
+"""
+import os
+import sys
+import urllib.parse
+import urllib.request
+import subprocess
+
+import gi
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio, GLib
+
+BUS_NAME = "org.freedesktop.portal.Desktop"
+OBJ_PATH = "/org/freedesktop/portal/desktop"
+SCREENSHOT_IFACE = "org.freedesktop.portal.Screenshot"
+REQUEST_IFACE = "org.freedesktop.portal.Request"
+
+bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+loop = GLib.MainLoop()
+result = {"uri": None}
+
+# Portal replies on a Request object whose path it returns. A unique
+# token lets us predict that path and subscribe before the call.
+token = "shotann" + str(os.getpid())
+sender = bus.get_unique_name()[1:].replace(".", "_")
+request_path = f"/org/freedesktop/portal/desktop/request/{sender}/{token}"
+
+
+def on_response(_conn, _sender, _path, _iface, _signal, params):
+    response_code, results = params.unpack()
+    if response_code == 0:  # 0 = success; 1 = user cancelled; 2 = error
+        result["uri"] = results.get("uri")
+    loop.quit()
+
+
+bus.signal_subscribe(
+    BUS_NAME, REQUEST_IFACE, "Response", request_path, None,
+    Gio.DBusSignalFlags.NONE, on_response,
+)
+
+options = {
+    "handle_token": GLib.Variant("s", token),
+    "interactive": GLib.Variant("b", True),  # show COSMIC area/window picker
+}
+bus.call_sync(
+    BUS_NAME, OBJ_PATH, SCREENSHOT_IFACE, "Screenshot",
+    GLib.Variant("(sa{sv})", ("", options)),
+    GLib.VariantType("(o)"), Gio.DBusCallFlags.NONE, -1, None,
+)
+
+loop.run()
+
+uri = result["uri"]
+if not uri:
+    sys.exit(0)  # cancelled -> silent no-op
+
+path = urllib.request.url2pathname(urllib.parse.urlparse(uri).path)
+
+home = os.path.expanduser("~")
+save_pattern = f"{home}/Pictures/Screenshots/satty-%Y%m%d-%H%M%S.png"
+
+with open(path, "rb") as fh:
+    subprocess.run(
+        [
+            "satty",
+            "--filename", "-",
+            "--output-filename", save_pattern,
+            "--copy-command", "wl-copy",
+            "--initial-tool", "arrow",
+            # Enter saves to file and clipboard, then Satty exits.
+            "--actions-on-enter", "save-to-file,save-to-clipboard",
+            "--early-exit",
+        ],
+        stdin=fh, check=False,
+    )

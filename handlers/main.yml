@@ -5,13 +5,16 @@
   ansible.builtin.service:
     name: ssh
     state: restarted
+  when: not common_is_container | default(false)
 
 - name: Restart fail2ban
   ansible.builtin.service:
     name: fail2ban
     state: restarted
+  when: not common_is_container | default(false)
 
 - name: Reload bwrap AppArmor profile
   ansible.builtin.command: apparmor_parser -r /etc/apparmor.d/bwrap
   become: true
   changed_when: true
+  when: not common_is_container | default(false)

@@ -1,0 +1,19 @@
+---
+# Custom shortcuts live in a single RON map. Rendering the whole file keeps
+# vars authoritative: shortcuts added by hand in COSMIC Settings are replaced
+# on the next run (documented in the README).
+- name: Ensure the COSMIC shortcuts config directory exists
+  ansible.builtin.file:
+    path: "{{ cosmic_config_home }}/com.system76.CosmicSettings.Shortcuts/v1"
+    state: directory
+    mode: "0755"
+  become: true
+  become_user: "{{ local_user }}"
+
+- name: Render custom shortcuts
+  ansible.builtin.template:
+    src: custom-shortcuts.ron.j2
+    dest: "{{ cosmic_config_home }}/com.system76.CosmicSettings.Shortcuts/v1/custom"
+    mode: "0644"
+  become: true
+  become_user: "{{ local_user }}"

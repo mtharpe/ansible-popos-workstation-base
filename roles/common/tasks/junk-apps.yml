@@ -1,0 +1,57 @@
+---
+# Purge preinstalled apps we don't want, without letting apt's dependency
+# resolution take the desktop with them. On Pop!_OS the pop-desktop
+# metapackage may depend on some of these; purging one removes pop-desktop,
+# and autoremove then sweeps away everything only it was holding — which can
+# include COSMIC. So: simulate first, refuse if a protected package appears
+# in the simulated removals, and only then purge for real.
+- name: Find which junk packages are installed
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n'
+      {{ common_junk_packages | map('quote') | join(' ') }} 2>/dev/null
+      | awk '$1 == "ii" { print $2 }'
+    executable: /bin/bash
+  register: common_junk_installed
+  changed_when: false
+  failed_when: false
+  tags: [junk]
+
+- name: Simulate purging the installed junk packages  # noqa: command-instead-of-module (apt module cannot report a simulation)
+  ansible.builtin.command:
+    cmd: >-
+      apt-get -s purge --autoremove
+      {{ common_junk_installed.stdout_lines | map('quote') | join(' ') }}
+  register: common_junk_simulation
+  changed_when: false
+  when: common_junk_installed.stdout_lines | length > 0
+  tags: [junk]
+
+- name: Collect packages the simulation would remove
+  ansible.builtin.set_fact:
+    common_junk_would_remove: >-
+      {{ common_junk_simulation.stdout_lines | default([])
+         | select('match', '^(Purg|Remv) ')
+         | map('regex_replace', '^(?:Purg|Remv) (\S+).*$', '\1')
+         | list }}
+  tags: [junk]
+
+- name: Refuse a purge that would remove the desktop
+  ansible.builtin.assert:
+    that: common_junk_would_remove | intersect(common_protected_packages) | length == 0
+    fail_msg: >-
+      Purging {{ common_junk_installed.stdout_lines | join(', ') }} would also remove
+      {{ common_junk_would_remove | intersect(common_protected_packages) | join(', ') }}.
+      Drop the offending package from common_junk_packages.
+  tags: [junk]
+
+- name: Purge the junk packages
+  ansible.builtin.apt:
+    name: "{{ common_junk_installed.stdout_lines }}"
+    state: absent
+    purge: true
+    autoremove: true
+  become: true
+  when: common_junk_installed.stdout_lines | length > 0
+  tags: [junk]

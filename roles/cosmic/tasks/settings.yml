@@ -1,0 +1,30 @@
+---
+# Generic COSMIC config writer. Callers pass cosmic_settings_batch: a list of
+# {component, version, key, value}; each becomes
+#   {{ cosmic_config_home }}/<component>/v<version>/<key>
+# containing the raw RON value. COSMIC watches these files and applies changes
+# live. Runs as local_user so COSMIC can keep writing to its own config.
+- name: Ensure COSMIC config directories exist
+  ansible.builtin.file:
+    path: "{{ cosmic_config_home }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  become: true
+  become_user: "{{ local_user }}"
+  loop: >-
+    {{ cosmic_settings_batch | map(attribute='component')
+       | zip(cosmic_settings_batch | map(attribute='version') | map('string'))
+       | map('join', '/v') | unique | list }}
+
+- name: Write COSMIC settings
+  ansible.builtin.copy:
+    dest: "{{ cosmic_config_home }}/{{ item.component }}/v{{ item.version }}/{{ item.key }}"
+    # Non-strings (a bool or list a template produced) are JSON-encoded, which
+    # is also valid RON for booleans, numbers and lists of strings.
+    content: "{{ item.value if item.value is string else (item.value | to_json) }}"
+    mode: "0644"
+  become: true
+  become_user: "{{ local_user }}"
+  loop: "{{ cosmic_settings_batch }}"
+  loop_control:
+    label: "{{ item.component }}/{{ item.key }}"

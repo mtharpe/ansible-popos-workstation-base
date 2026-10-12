@@ -22,10 +22,40 @@ local_network: ""
 install_printers: true
 
 # Desktop extras: GUI apps (nextcloud-desktop, celluloid, mpv, transmission),
-# GNOME configuration tools (dconf-editor, gnome-tweaks, gnome-extensions-app),
 # VA-API hardware video accel, GStreamer media codecs, WirePlumber ALSA config,
-# and Firefox/Thunderbird launcher hiding. Set false on headless / WSL boxes.
+# and the junk-app purge. Set false on a headless box.
 install_desktop_extras: true
+
+# Skip the Pop!_OS host check (roles/common/tasks/preflight.yml). Only for
+# container tests — the playbook assumes Pop!_OS + COSMIC everywhere else.
+popos_skip_preflight: false
+
+# Preinstalled apps purged on desktop installs. Reconciled against the Pop!_OS
+# 24.04 preinstalled list in docs/cosmic-keys.md.
+common_junk_packages:
+  - firefox
+  - thunderbird
+  - libreoffice-core
+  - libreoffice-common
+  - libreoffice-writer
+  - libreoffice-calc
+  - libreoffice-impress
+  - libreoffice-draw
+  - libreoffice-base-core
+  - libreoffice-math
+  - rhythmbox
+  - totem
+  - vlc
+  - gnome-calendar
+  - gnome-contacts
+  - gnome-maps
+  - gnome-logs
+
+# The junk purge refuses to run if apt would remove any of these with it.
+common_protected_packages:
+  - pop-desktop
+  - cosmic-session
+  - cosmic-comp
 
 # Third party
 install_chrome: true
@@ -33,6 +63,12 @@ install_slack: true
 install_spotify: false
 install_vscode: true
 install_zoom: true
+# Cider — Apple Music client, installed as the sh.cider.Cider flatpak.
+install_cider: true
+# Twingate zero-trust client, from Twingate's signed apt repo.
+# After install, run `twingate setup` once to join a network.
+install_twingate: true
+twingate_repo_url: "https://packages.twingate.com/apt/"
 install_lutris: false
 install_steam: false
 install_docker: false
@@ -48,48 +84,173 @@ install_eza: true
 install_claude: true
 install_claude_desktop: true
 install_kubectl: true
-install_multipass: true
 
-# GNOME Shell extensions to install + enable. UUIDs must match
-# extensions.gnome.org. Edit if any UUID needs to change.
-gnome_extensions:
-  - just-perfection-desktop@just-perfection
-  - auto-move-windows@gnome-shell-extensions.gcampax.github.com
-  - power-profile-switcher@fthx
-  - auto-select-headset@krocg
-
-# Hand-written ("local") GNOME Shell extensions whose source trees live in
-# roles/gnome/files/local-extensions/<uuid>/. Synced + enabled by
-# roles/gnome/tasks/local-extensions.yml.
-gnome_local_extensions:
-  - silent-cycle-current-app@local
-  - chrome-pwa-grouper@local
-
-# Custom GNOME keyboard shortcuts, reproduced on every run so a fresh install
-# matches your existing setup. Each entry maps a key binding to a command.
-# The screenshot entries call helper scripts the gnome role installs to
-# ~/.local/bin (they capture to the Wayland clipboard via wl-copy). Leave the
-# list empty to skip custom shortcuts entirely.
-gnome_custom_keybindings:
-  - name: "1Password Quick Access"
-    binding: "<Shift><Control>space"
-    command: "/usr/bin/1password --quick-access"
-  - name: "Open File Manager"
-    binding: "<Super>e"
-    command: "nautilus --new-window"
-  - name: "Area Screenshot (to clipboard)"
-    binding: "<Shift><Alt>4"
-    command: "/home/{{ local_user }}/.local/bin/area-screenshot-clip"
-  - name: "Fullscreen Screenshot (to clipboard)"
-    binding: "<Shift><Alt>3"
-    command: "/home/{{ local_user }}/.local/bin/fullscreen-screenshot-clip"
+# Standalone Electron web apps built from https://github.com/mtharpe/electron-apps
+# and installed under ~/.local. First run downloads Electron and packages every
+# slug below, so it is slow; later runs skip the build unless the checkout
+# moved or an app is missing.
+install_electron_apps: true
+electron_apps_repo: https://github.com/mtharpe/electron-apps.git
+electron_apps_version: main
+electron_apps_src: "/home/{{ local_user }}/.local/src/electron-apps"
+electron_apps_prefix: "/home/{{ local_user }}/.local"
+# Authoritative build list (passed to build-linux.sh). Keep in step with
+# colloid_extra_icons / colloid_icon_aliases in the cosmic section.
+electron_apps_slugs:
+  - gmail
+  - google-calendar
+  - google-tasks
+  - google-keep
+  - google-messages
+  - messenger
 
 # python3
 ansible_python_interpreter: /usr/bin/python3
 
-# Ubuntu target version (used for pinning images / docs)
-ubuntu_version: "24.04"
+# Pop!_OS target version, checked by roles/common/tasks/preflight.yml.
+popos_version: "24.04"
 
 # Header stamped into rendered config files via `{{ ansible_managed }}`.
 # Replaces the deprecated DEFAULT_MANAGED_STR setting in ansible.cfg.
 ansible_managed: "Ansible managed — do not edit by hand"
+
+# --- COSMIC desktop (roles/cosmic) -----------------------------------------
+# COSMIC stores one setting per file: ~/.config/cosmic/<component>/v<version>/<key>,
+# holding a RON value. See docs/cosmic-keys.md before changing one — values
+# marked provisional there have not yet been captured from a real install.
+cosmic_config_home: "/home/{{ local_user }}/.config/cosmic"
+
+cosmic_settings:
+  - component: com.system76.CosmicTheme.Mode
+    version: 1
+    key: is_dark
+    value: "true"
+  - component: com.system76.CosmicAppletTime
+    version: 1
+    key: military_time
+    value: "false"
+  - component: com.system76.CosmicTk
+    version: 1
+    key: show_minimize
+    value: "true"
+  - component: com.system76.CosmicTk
+    version: 1
+    key: show_maximize
+    value: "true"
+  - component: com.system76.CosmicComp
+    version: 1
+    key: workspaces
+    value: "(workspace_mode: OutputBound, workspace_layout: Horizontal)"
+  - component: com.system76.CosmicComp
+    version: 1
+    key: input_touchpad
+    value: |-
+      (
+          state: Enabled,
+          click_method: Some(Clickfinger),
+          scroll_config: Some((
+              method: Some(TwoFinger),
+              natural_scroll: Some(false),
+              scroll_button: None,
+              scroll_factor: None,
+          )),
+          tap_config: Some((
+              enabled: false,
+              button_map: Some(LeftRightMiddle),
+              drag: true,
+              drag_lock: false,
+          )),
+      )
+  - component: com.system76.CosmicComp
+    version: 1
+    key: input_default
+    value: |-
+      (
+          state: Enabled,
+          scroll_config: Some((
+              method: None,
+              natural_scroll: Some(false),
+              scroll_button: None,
+              scroll_factor: None,
+          )),
+      )
+
+# Layout: top panel on, dock off, auto-tiling off (closest to vanilla GNOME).
+cosmic_panel_enabled: true
+cosmic_dock_enabled: false
+cosmic_autotile: false
+
+# Custom shortcuts. The rendered file REPLACES any custom shortcuts made by
+# hand in COSMIC Settings. Modifiers: Super, Ctrl, Alt, Shift. `key` is the
+# key name exactly as COSMIC writes it (see docs/cosmic-keys.md).
+cosmic_custom_keybindings:
+  - name: "1Password Quick Access"
+    modifiers: [Ctrl, Shift]
+    key: space
+    command: "/usr/bin/1password --quick-access"
+  - name: "Open File Manager"
+    modifiers: [Super]
+    key: e
+    command: "cosmic-files"
+  - name: "Area Screenshot (annotate)"
+    modifiers: [Shift, Alt]
+    key: "4"
+    command: "/home/{{ local_user }}/.local/bin/area-screenshot-annotate"
+  - name: "Fullscreen Screenshot (to clipboard)"
+    modifiers: [Shift, Alt]
+    key: "3"
+    command: "/home/{{ local_user }}/.local/bin/fullscreen-screenshot-clip"
+
+# Cursor size (px) for the GTK settings.ini fallbacks.
+cosmic_cursor_size: 24
+
+# Colloid icon theme (https://github.com/vinceliuice/Colloid-icon-theme),
+# installed per-user and selected in COSMIC. false = keep Pop's default icons.
+install_colloid_icons: true
+cosmic_icon_theme: Colloid-Dark
+colloid_icon_repo: https://github.com/vinceliuice/Colloid-icon-theme.git
+colloid_icon_version: main
+colloid_icon_src: "/home/{{ local_user }}/.local/src/Colloid-icon-theme"
+colloid_icon_dest: "/home/{{ local_user }}/.local/share/icons"
+# Extra install.sh flags, e.g. "-t purple -s nord -b". Empty = default blue.
+colloid_icon_install_args: ""
+# Icons Colloid has nothing for; sourced from roles/cosmic/files/colloid-icons/.
+# Keep in step with electron_apps_slugs.
+colloid_extra_icons:
+  - google-keep.svg
+  - google-tasks.svg
+  - google-messages.svg
+  - cider.svg
+# Second names for icons already in the theme (symlinked).
+colloid_icon_aliases:
+  - name: messenger.svg
+    target: fbmessenger.svg
+  - name: sh.cider.Cider.svg
+    target: cider.svg
+
+# Dark-mode integration packages, probed with apt-cache; whichever this
+# release ships get installed, the rest are reported and skipped.
+cosmic_darkmode_candidate_pkgs:
+  - adw-gtk3
+  - gnome-themes-extra
+  - qt5-gtk-platformtheme
+  - qt6-gtk-platformtheme
+  - adwaita-qt
+  - adwaita-qt6
+
+# Environment so non-GTK toolkits follow dark mode. Written to /etc/environment
+# and ~/.config/environment.d; takes effect at next login.
+cosmic_darkmode_env:
+  QT_QPA_PLATFORMTHEME: gtk3
+  # Only takes effect if an adwaita Qt decoration plugin is installed; COSMIC
+  # also offers server-side decorations, which Qt uses when the plugin is absent.
+  QT_WAYLAND_DECORATION: adwaita
+  ELECTRON_OZONE_PLATFORM_HINT: auto
+
+# Satty (github.com/gabm/Satty) — Wayland screenshot annotator used by the
+# Shift+Alt+4 shortcut, installed from the upstream x86_64 tarball. Bump both
+# together: sha256 of satty-x86_64-unknown-linux-gnu.tar.gz on the release page.
+# Pinned to 0.20.1: 0.21.0+ binaries need glibc 2.43, Pop!_OS 24.04 (noble)
+# has 2.39. Check `strings satty | grep GLIBC_` before bumping.
+satty_version: "0.20.1"
+satty_sha256: "ea5a5a3bc066906bb0ecb229098e8cbbfe4d867043a64bd6f275de7951346092"

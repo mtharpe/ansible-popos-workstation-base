@@ -1,4 +1,7 @@
 ---
+- name: Preflight
+  ansible.builtin.import_tasks: preflight.yml
+
 - name: Detect container environment
   ansible.builtin.set_fact:
     common_is_container: "{{ ansible_facts['virtualization_type'] | default('') in
@@ -12,6 +15,9 @@
   ansible.builtin.import_tasks: repos.yml
 - name: Setup Packages
   ansible.builtin.import_tasks: packages.yml
+- name: Purge unwanted preinstalled apps
+  ansible.builtin.import_tasks: junk-apps.yml
+  when: install_desktop_extras | default(true)
 - name: Setup Users
   ansible.builtin.import_tasks: users.yml
 - name: Setup Services

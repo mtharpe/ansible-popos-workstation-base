@@ -10,7 +10,8 @@
   roles:
     - common
     - third-party
-    - gnome
+    - role: cosmic
+      when: not common_is_container | default(false)
 
   handlers:
     - name: Import shared handlers
