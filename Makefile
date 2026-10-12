@@ -86,7 +86,7 @@ check-podman-deps:
 		echo "   Install with: brew install podman"; \
 		exit 1; \
 	}
-	@python3 -m pip show molecule-podman >/dev/null 2>&1 || { \
+	@molecule drivers 2>/dev/null | grep -qw podman || { \
 		echo "❌ Missing molecule-podman driver plugin."; \
 		echo "   Install with: python3 -m pip install molecule-podman"; \
 		exit 1; \
@@ -99,7 +99,7 @@ check-docker-deps:
 		echo "   Install Docker Desktop or docker engine."; \
 		exit 1; \
 	}
-	@python3 -m pip show molecule-docker >/dev/null 2>&1 || { \
+	@molecule drivers 2>/dev/null | grep -qw docker || { \
 		echo "❌ Missing molecule-docker driver plugin."; \
 		echo "   Install with: python3 -m pip install molecule-docker"; \
 		exit 1; \
