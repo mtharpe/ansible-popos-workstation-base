@@ -99,3 +99,34 @@
         that:
           - (verify_dark.results[0].content | b64decode) is search('gtk-theme-name = adw-gtk3-dark')
           - (verify_dark.results[1].content | b64decode) is search('QT_QPA_PLATFORMTHEME=gtk3')
+
+    - name: Check the screenshot helpers are installed and executable
+      ansible.builtin.stat:
+        path: "/home/{{ local_user }}/.local/bin/{{ item }}"
+      loop:
+        - portal-screenshot-clip
+        - area-screenshot-clip
+        - fullscreen-screenshot-clip
+        - area-screenshot-annotate
+      register: verify_helpers
+
+    - name: Assert helpers exist, are executable and user-owned
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.executable
+          - item.stat.pw_name == local_user
+        fail_msg: "{{ item.item }}"
+      loop: "{{ verify_helpers.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # Proves the upstream binary links against this release's GTK4/libadwaita.
+    - name: Run satty --version
+      ansible.builtin.command: /usr/local/bin/satty --version
+      register: verify_satty
+      changed_when: false
+
+    - name: Assert the pinned Satty is installed
+      ansible.builtin.assert:
+        that: verify_satty.stdout is search(' ' ~ (satty_version | regex_escape) ~ '$', multiline=True)

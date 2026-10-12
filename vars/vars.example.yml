@@ -246,3 +246,11 @@ cosmic_darkmode_env:
   # also offers server-side decorations, which Qt uses when the plugin is absent.
   QT_WAYLAND_DECORATION: adwaita
   ELECTRON_OZONE_PLATFORM_HINT: auto
+
+# Satty (github.com/gabm/Satty) — Wayland screenshot annotator used by the
+# Shift+Alt+4 shortcut, installed from the upstream x86_64 tarball. Bump both
+# together: sha256 of satty-x86_64-unknown-linux-gnu.tar.gz on the release page.
+# Pinned to 0.20.1: 0.21.0+ binaries need glibc 2.43, Pop!_OS 24.04 (noble)
+# has 2.39. Check `strings satty | grep GLIBC_` before bumping.
+satty_version: "0.20.1"
+satty_sha256: "ea5a5a3bc066906bb0ecb229098e8cbbfe4d867043a64bd6f275de7951346092"

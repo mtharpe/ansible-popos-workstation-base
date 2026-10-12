@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Full-screen screenshot -> Wayland clipboard. Thin wrapper over the shared
+# portal-screenshot-clip core.
+exec "$HOME/.local/bin/portal-screenshot-clip" --fullscreen
