@@ -1,0 +1,41 @@
+---
+- name: Verify common + third-party
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    # Review Focus 1: a purge that would take a protected package with it must
+    # stop before anything is removed. python3-minimal's reverse deps include
+    # python3, which stands in for pop-desktop here.
+    - name: Attempt a purge that would cascade into a protected package
+      block:
+        - name: Run the junk-app purge with a cascading package
+          ansible.builtin.include_role:
+            name: common
+            tasks_from: junk-apps.yml
+          vars:
+            common_junk_packages: [python3-minimal]
+            common_protected_packages: [python3]
+        - name: Record that nothing stopped the purge
+          ansible.builtin.set_fact:
+            verify_guard_msg: ""
+      rescue:
+        - name: Record why the purge stopped
+          ansible.builtin.set_fact:
+            verify_guard_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    # Match the guard's own message: any other failure (e.g. a missing task
+    # file) must not count as the guard firing.
+    - name: Assert the guard stopped the purge
+      ansible.builtin.assert:
+        that: verify_guard_msg is search('would also remove')
+        fail_msg: "Expected the protected-package guard to fire; got: {{ verify_guard_msg or 'no failure' }}"
+
+    - name: Check python3 is still installed
+      ansible.builtin.command: dpkg-query -W -f='${db:Status-Abbrev}' python3
+      register: verify_python3
+      changed_when: false
+
+    - name: Assert python3 survived
+      ansible.builtin.assert:
+        that: verify_python3.stdout is match('ii')

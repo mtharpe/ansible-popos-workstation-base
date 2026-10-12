@@ -26,6 +26,37 @@ install_printers: true
 # and the junk-app purge. Set false on a headless box.
 install_desktop_extras: true
 
+# Skip the Pop!_OS host check (roles/common/tasks/preflight.yml). Only for
+# container tests — the playbook assumes Pop!_OS + COSMIC everywhere else.
+popos_skip_preflight: false
+
+# Preinstalled apps purged on desktop installs. Reconciled against the Pop!_OS
+# 24.04 preinstalled list in docs/cosmic-keys.md.
+common_junk_packages:
+  - firefox
+  - thunderbird
+  - libreoffice-core
+  - libreoffice-common
+  - libreoffice-writer
+  - libreoffice-calc
+  - libreoffice-impress
+  - libreoffice-draw
+  - libreoffice-base-core
+  - libreoffice-math
+  - rhythmbox
+  - totem
+  - vlc
+  - gnome-calendar
+  - gnome-contacts
+  - gnome-maps
+  - gnome-logs
+
+# The junk purge refuses to run if apt would remove any of these with it.
+common_protected_packages:
+  - pop-desktop
+  - cosmic-session
+  - cosmic-comp
+
 # Third party
 install_chrome: true
 install_slack: true

@@ -157,6 +157,9 @@
     owner: root
     group: root
     mode: '0644'
+    # The 1password package's postinst rewrites this file in its own format;
+    # only seed it when absent so re-runs don't fight the package.
+    force: false
   become: true
   register: common_onepassword_repo
   when: common_onepassword_probe.status | default(0) == 200

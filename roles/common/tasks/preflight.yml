@@ -1,0 +1,17 @@
+---
+# Stop before touching anything when this isn't the OS the playbook targets.
+# Pop!_OS 22.04 is GNOME-based and would get a half-applied COSMIC config;
+# plain Ubuntu has no COSMIC at all. Molecule sets popos_skip_preflight
+# because its test container is stock ubuntu:24.04.
+- name: Assert the host is Pop!_OS {{ popos_version }}
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Pop!_OS'
+      - ansible_facts['distribution_version'] == popos_version
+    fail_msg: >-
+      This playbook targets Pop!_OS {{ popos_version }} (COSMIC). Detected
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] | default('unknown') }}.
+      Set popos_skip_preflight=true only for container tests.
+    quiet: true
+  when: not popos_skip_preflight | default(false)
+  tags: [always]

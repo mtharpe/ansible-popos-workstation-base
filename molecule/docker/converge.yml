@@ -5,6 +5,12 @@
   gather_facts: true
   vars:
     local_user: testuser
+    local_user_email: testuser@example.invalid
+    local_network: ""
+    ansible_managed: "Ansible managed — do not edit by hand"
+    popos_skip_preflight: true
+    common_junk_packages: [vlc]
+    common_protected_packages: [pop-desktop, cosmic-session, cosmic-comp]
 
   pre_tasks:
     - name: Ensure test user exists
@@ -15,3 +21,7 @@
   roles:
     - role: common
     - role: third-party
+
+  handlers:
+    - name: Import shared handlers
+      ansible.builtin.import_tasks: ../../handlers/main.yml

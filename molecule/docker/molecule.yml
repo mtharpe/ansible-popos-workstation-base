@@ -6,6 +6,9 @@ driver:
 platforms:
   - name: instance
     image: ubuntu:24.04
+    # Pop!_OS and the third-party apt repos are amd64-only; emulate on
+    # Apple Silicon hosts.
+    platform: linux/amd64
     privileged: true
     command: /bin/bash -c "while true; do sleep 30; done"
 provisioner:
@@ -14,5 +17,6 @@ provisioner:
     ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
   playbooks:
     converge: converge.yml
+    verify: ../default/verify.yml
 verifier:
   name: ansible

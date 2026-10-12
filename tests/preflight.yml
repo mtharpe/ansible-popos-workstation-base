@@ -1,0 +1,16 @@
+---
+# Run from the repo root:
+#   ANSIBLE_ROLES_PATH=roles ansible-playbook tests/preflight.yml
+# On any non-Pop!_OS host this must FAIL with the preflight message, and must
+# PASS when given -e popos_skip_preflight=true.
+- name: Exercise the Pop!_OS preflight check
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  vars:
+    popos_version: "24.04"
+  tasks:
+    - name: Run preflight
+      ansible.builtin.include_role:
+        name: common
+        tasks_from: preflight.yml
