@@ -1,0 +1,169 @@
+---
+# Colloid icon theme (https://github.com/vinceliuice/Colloid-icon-theme).
+#
+# Installed per-user under ~/.local/share/icons rather than system-wide: the
+# upstream installer is a shell script with no packaging, so keeping it in $HOME
+# means no root-owned files outside apt's control and a trivial uninstall.
+#
+# Every app this repo installs needs a name Colloid resolves, or the desktop
+# entry falls through the theme to whatever PNG the app dropped into hicolor and
+# the launcher shows one un-themed icon among themed ones. Two gaps get filled
+# here, both re-applied after every install run because the upstream installer
+# rm -rf's each theme directory before recreating it:
+#
+#   colloid_extra_icons    icons upstream has nothing for at all (Google Keep,
+#                          Tasks, Messages, Cider). Hand-drawn to match
+#                          Colloid's own tile construction: 56.002 tile at
+#                          rx 13.002, flat brand colour, white glyph, and its two
+#                          shading overlays.
+#   colloid_icon_aliases   a second name for an icon already in the theme, either
+#                          because Colloid draws the app under a different name
+#                          (Messenger is fbmessenger.svg) or because the .desktop
+#                          entry asks by reverse-DNS id (the Cider flatpak wants
+#                          sh.cider.Cider). Symlinked, not copied, so the alias
+#                          keeps tracking whatever it points at.
+#
+# Order matters: extras are copied before aliases are linked, so an alias may
+# target an extra as well as an upstream icon.
+
+- name: Install icon theme build dependencies
+  ansible.builtin.apt:
+    name:
+      - git
+      - gtk-update-icon-cache  # install.sh calls gtk-update-icon-cache directly
+    state: present
+  become: true
+  tags: [cosmic, icon-theme]
+
+- name: Clone the Colloid icon theme
+  ansible.builtin.git:
+    repo: "{{ colloid_icon_repo }}"
+    dest: "{{ colloid_icon_src }}"
+    version: "{{ colloid_icon_version }}"
+    depth: 1
+    force: true
+  become: true
+  become_user: "{{ local_user }}"
+  register: cosmic_colloid_clone
+  tags: [cosmic, icon-theme]
+
+- name: Check whether Colloid is already installed
+  ansible.builtin.stat:
+    path: "{{ colloid_icon_dest }}/{{ cosmic_icon_theme }}/index.theme"
+  register: cosmic_colloid_installed
+  tags: [cosmic, icon-theme]
+
+- name: Ensure the user icon directory exists
+  ansible.builtin.file:
+    path: "{{ colloid_icon_dest }}"
+    state: directory
+    owner: "{{ local_user }}"
+    group: "{{ local_user }}"
+    mode: "0755"
+  become: true
+  become_user: "{{ local_user }}"
+  tags: [cosmic, icon-theme]
+
+# Only re-run when the checkout moved or the theme is missing — the installer
+# rebuilds ~170MB of icons and is far too slow to run on every provision.
+- name: Install the Colloid icon theme
+  ansible.builtin.command:
+    cmd: ./install.sh -d {{ colloid_icon_dest | quote }} {{ colloid_icon_install_args }}
+    chdir: "{{ colloid_icon_src }}"
+  become: true
+  become_user: "{{ local_user }}"
+  when: cosmic_colloid_clone.changed or not cosmic_colloid_installed.stat.exists
+  register: cosmic_colloid_install
+  changed_when: cosmic_colloid_install.rc == 0
+  tags: [cosmic, icon-theme]
+
+# Colloid/apps and Colloid-Dark/apps/scalable are symlinks into Colloid-Light,
+# so one copy serves every variant.
+- name: Add the custom Colloid icons upstream does not ship
+  ansible.builtin.copy:
+    src: "colloid-icons/{{ item }}"
+    dest: "{{ colloid_icon_dest }}/Colloid-Light/apps/scalable/{{ item }}"
+    owner: "{{ local_user }}"
+    group: "{{ local_user }}"
+    mode: "0644"
+  become: true
+  become_user: "{{ local_user }}"
+  loop: "{{ colloid_extra_icons }}"
+  register: cosmic_colloid_extra
+  tags: [cosmic, icon-theme]
+
+# Checked separately rather than left to the file module: the alias has to be
+# created with force (the name it replaces starts life as a real file, copied by
+# an older version of this role), and force is also what makes a missing target
+# succeed into a dangling symlink instead of failing. A dangling alias resolves
+# to nothing and drops the app straight back to the un-themed hicolor PNG —
+# exactly what this task exists to prevent — so an upstream rename has to stop
+# the run rather than quietly undo it.
+- name: Check the icons the aliases point at are present
+  ansible.builtin.stat:
+    path: "{{ colloid_icon_dest }}/Colloid-Light/apps/scalable/{{ item.target }}"
+  loop: "{{ colloid_icon_aliases }}"
+  loop_control:
+    label: "{{ item.target }}"
+  register: cosmic_colloid_alias_targets
+  changed_when: false
+  tags: [cosmic, icon-theme]
+
+- name: Fail when an icon an alias points at is missing
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: >-
+      {{ item.item.target }} is not in the theme, so the {{ item.item.name }}
+      alias would dangle and the app would fall back to its un-themed hicolor
+      icon. If it is an upstream icon, check Colloid for a rename and update
+      colloid_icon_aliases, or add a replacement to colloid_extra_icons if
+      upstream dropped it. If it is a colloid_extra_icons entry, check it is
+      still listed there and that the file exists in
+      roles/cosmic/files/colloid-icons/.
+  loop: "{{ cosmic_colloid_alias_targets.results }}"
+  loop_control:
+    label: "{{ item.item.target }}"
+  tags: [cosmic, icon-theme]
+
+# Relative link target, so it resolves inside whichever prefix the theme is
+# installed under.
+- name: Link the second names apps look their icons up by
+  ansible.builtin.file:
+    src: "{{ item.target }}"
+    dest: "{{ colloid_icon_dest }}/Colloid-Light/apps/scalable/{{ item.name }}"
+    state: link
+    force: true
+    follow: false
+  become: true
+  become_user: "{{ local_user }}"
+  loop: "{{ colloid_icon_aliases }}"
+  loop_control:
+    label: "{{ item.name }} -> {{ item.target }}"
+  register: cosmic_colloid_aliases
+  tags: [cosmic, icon-theme]
+
+- name: Refresh the icon caches
+  ansible.builtin.command:
+    cmd: gtk-update-icon-cache -f {{ colloid_icon_dest }}/{{ item }}
+  become: true
+  become_user: "{{ local_user }}"
+  loop:
+    - Colloid
+    - Colloid-Light
+    - Colloid-Dark
+  when: >-
+    cosmic_colloid_install.changed | default(false)
+    or cosmic_colloid_extra.changed | default(false)
+    or cosmic_colloid_aliases.changed | default(false)
+  changed_when: true
+  tags: [cosmic, icon-theme]
+
+- name: Select the icon theme in COSMIC
+  ansible.builtin.include_tasks: settings.yml
+  vars:
+    cosmic_settings_batch:
+      - component: com.system76.CosmicTk
+        version: 1
+        key: icon_theme
+        value: '"{{ cosmic_icon_theme }}"'
+  tags: [cosmic, icon-theme]

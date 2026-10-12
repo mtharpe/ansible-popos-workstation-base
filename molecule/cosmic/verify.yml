@@ -59,3 +59,43 @@
       ansible.builtin.assert:
         that: verify_foreign.stdout == ''
         fail_msg: "Not owned by {{ local_user }}: {{ verify_foreign.stdout }}"
+
+    - name: Read the COSMIC icon theme setting
+      ansible.builtin.slurp:
+        src: "{{ cosmic_config_home }}/com.system76.CosmicTk/v1/icon_theme"
+      register: verify_icon_theme
+
+    - name: Assert Colloid is selected
+      ansible.builtin.assert:
+        that: (verify_icon_theme.content | b64decode) == '"' ~ cosmic_icon_theme ~ '"'
+
+    - name: Check theme, extras and aliases are on disk
+      ansible.builtin.stat:
+        path: "{{ colloid_icon_dest }}/{{ item }}"
+      loop:
+        - "{{ cosmic_icon_theme }}/index.theme"
+        - Colloid-Light/apps/scalable/google-keep.svg
+        - Colloid-Light/apps/scalable/sh.cider.Cider.svg
+      register: verify_icons
+
+    - name: Assert icons are installed
+      ansible.builtin.assert:
+        that: item.stat.exists
+        fail_msg: "missing {{ item.item }}"
+      loop: "{{ verify_icons.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read GTK3 settings.ini and environment.d
+      ansible.builtin.slurp:
+        src: "/home/{{ local_user }}/{{ item }}"
+      loop:
+        - .config/gtk-3.0/settings.ini
+        - .config/environment.d/90-dark-mode.conf
+      register: verify_dark
+
+    - name: Assert GTK3 and Qt are pointed at dark
+      ansible.builtin.assert:
+        that:
+          - (verify_dark.results[0].content | b64decode) is search('gtk-theme-name = adw-gtk3-dark')
+          - (verify_dark.results[1].content | b64decode) is search('QT_QPA_PLATFORMTHEME=gtk3')

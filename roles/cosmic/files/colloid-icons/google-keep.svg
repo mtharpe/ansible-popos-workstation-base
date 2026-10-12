@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Colloid-style Google Keep. Upstream Colloid ships no google-keep icon;
+       this follows its Google family convention: colored tile, white panel,
+       colored glyph (same construction as Colloid's google-calendar.svg). -->
+  <rect width="56.002" height="56.002" x="4" y="3.969" fill="#fbbc04" rx="13.002" ry="13.002"/>
+  <!-- note sheet with folded top-right corner -->
+  <path fill="#fff" d="M22 13h16l8 8v26a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V17a4 4 0 0 1 4-4z"/>
+  <path fill="#f09300" d="M38 13l8 8h-8z"/>
+  <!-- lightbulb -->
+  <circle cx="32" cy="29.5" r="7" fill="#f9ab00"/>
+  <rect width="9" height="3.4" x="27.5" y="39.2" fill="#f9ab00" rx="1.7" ry="1.7"/>
+  <!-- Colloid tile shading -->
+  <path fill="#fff" opacity=".15" d="M3.998 18.004v-1C3.998 9.801 9.798 4 17.002 4h29.996c7.203 0 13.004 5.8 13.004 13.004v1c0-7.203-5.8-13.002-13.004-13.002H17.002A12.975 12.975 0 0 0 3.998 18.004"/>
+  <path fill="#000" opacity=".15" d="M3.998 45.998v1c0 7.203 5.8 13.004 13.004 13.004h29.996c7.203 0 13.004-5.8 13.004-13.004v-1c0 7.203-5.8 13.002-13.004 13.002H17.002A12.975 12.975 0 0 1 3.998 45.998"/>
+</svg>

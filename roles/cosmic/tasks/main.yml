@@ -27,3 +27,12 @@
   ansible.builtin.import_tasks: keybindings.yml
   when: cosmic_custom_keybindings | default([]) | length > 0
   tags: [cosmic, keybindings]
+
+- name: Dark mode across GTK2/3/4, Qt and Electron
+  ansible.builtin.import_tasks: theme.yml
+  tags: [cosmic, dark-mode]
+
+- name: Colloid icon theme
+  ansible.builtin.import_tasks: icon-theme.yml
+  when: install_colloid_icons | default(false)
+  tags: [cosmic, icon-theme]

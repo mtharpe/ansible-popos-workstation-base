@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Colloid-style Cider (Apple Music client). Upstream Colloid ships no cider icon;
+       this follows the same construction as the hand-made google-keep.svg and tidal.svg
+       in this theme: Colloid's 56.002 tile at rx 13.002, flat brand colour, white glyph,
+       and Colloid's two shading overlays.
+
+       Flat rather than gradient on purpose. Cider's own tile is a vertical crimson-to-
+       magenta gradient (#e73f58 -> #8d0855), but Colloid's brand tiles are flat fills
+       (cf. its spotify.svg and discord.svg), so the fill below is that gradient's
+       midpoint — the colour Cider's tile actually shows at its centre line.
+
+       Glyph geometry is taken from the app's own cider-outline.svg (356px mark: outer
+       r178, ring inner r123.002, disc r102.378, triangle x150.129-210.763 y145.87-210.13)
+       rather than redrawn by eye, scaled by 0.11916 so the mark sits at the same 76% of
+       tile width it occupies in Cider's launcher icon. -->
+  <rect width="56.002" height="56.002" x="4" y="3.969" fill="#b92357" rx="13.002" ry="13.002"/>
+  <!-- One evenodd path, same trick the app icon uses: thick ring, thin gap, disc, and a
+       play triangle knocked back out to the tile colour. Crossing counts alternate
+       filled/hole from the outside in, so the tile shows through without restating
+       its fill. -->
+  <path fill="#fff" fill-rule="evenodd" d="M10.79 32a21.21 21.21 0 1 0 42.42 0 21.21 21.21 0 1 0-42.42 0Z
+                                           M17.34 32a14.66 14.66 0 1 0 29.32 0 14.66 14.66 0 1 0-29.32 0Z
+                                           M19.8 32a12.2 12.2 0 1 0 24.4 0 12.2 12.2 0 1 0-24.4 0Z
+                                           M28.68 28.17 35.9 32 28.68 35.83Z"/>
+  <!-- Colloid tile shading -->
+  <path fill="#fff" opacity=".15" d="M3.998 18.004v-1C3.998 9.801 9.798 4 17.002 4h29.996c7.203 0 13.004 5.8 13.004 13.004v1c0-7.203-5.8-13.002-13.004-13.002H17.002A12.975 12.975 0 0 0 3.998 18.004"/>
+  <path fill="#000" opacity=".15" d="M3.998 45.998v1c0 7.203 5.8 13.004 13.004 13.004h29.996c7.203 0 13.004-5.8 13.004-13.004v-1c0 7.203-5.8 13.002-13.004 13.002H17.002A12.975 12.975 0 0 1 3.998 45.998"/>
+</svg>
