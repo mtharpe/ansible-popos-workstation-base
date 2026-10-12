@@ -1,0 +1,20 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: cosmic-instance
+    image: ubuntu:24.04
+    # Pop!_OS is amd64; emulate on Apple Silicon hosts.
+    platform: linux/amd64
+    privileged: true
+    command: /bin/bash -c "while true; do sleep 30; done"
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/roles"
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: ansible

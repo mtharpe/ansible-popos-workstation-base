@@ -113,3 +113,90 @@ popos_version: "24.04"
 # Header stamped into rendered config files via `{{ ansible_managed }}`.
 # Replaces the deprecated DEFAULT_MANAGED_STR setting in ansible.cfg.
 ansible_managed: "Ansible managed — do not edit by hand"
+
+# --- COSMIC desktop (roles/cosmic) -----------------------------------------
+# COSMIC stores one setting per file: ~/.config/cosmic/<component>/v<version>/<key>,
+# holding a RON value. See docs/cosmic-keys.md before changing one — values
+# marked provisional there have not yet been captured from a real install.
+cosmic_config_home: "/home/{{ local_user }}/.config/cosmic"
+
+cosmic_settings:
+  - component: com.system76.CosmicTheme.Mode
+    version: 1
+    key: is_dark
+    value: "true"
+  - component: com.system76.CosmicAppletTime
+    version: 1
+    key: military_time
+    value: "false"
+  - component: com.system76.CosmicTk
+    version: 1
+    key: show_minimize
+    value: "true"
+  - component: com.system76.CosmicTk
+    version: 1
+    key: show_maximize
+    value: "true"
+  - component: com.system76.CosmicComp
+    version: 1
+    key: workspaces
+    value: "(workspace_mode: OutputBound, workspace_layout: Horizontal)"
+  - component: com.system76.CosmicComp
+    version: 1
+    key: input_touchpad
+    value: |-
+      (
+          state: Enabled,
+          click_method: Some(Clickfinger),
+          scroll_config: Some((
+              method: Some(TwoFinger),
+              natural_scroll: Some(false),
+              scroll_button: None,
+              scroll_factor: None,
+          )),
+          tap_config: Some((
+              enabled: false,
+              button_map: Some(LeftRightMiddle),
+              drag: true,
+              drag_lock: false,
+          )),
+      )
+  - component: com.system76.CosmicComp
+    version: 1
+    key: input_default
+    value: |-
+      (
+          state: Enabled,
+          scroll_config: Some((
+              method: None,
+              natural_scroll: Some(false),
+              scroll_button: None,
+              scroll_factor: None,
+          )),
+      )
+
+# Layout: top panel on, dock off, auto-tiling off (closest to vanilla GNOME).
+cosmic_panel_enabled: true
+cosmic_dock_enabled: false
+cosmic_autotile: false
+
+# Custom shortcuts. The rendered file REPLACES any custom shortcuts made by
+# hand in COSMIC Settings. Modifiers: Super, Ctrl, Alt, Shift. `key` is the
+# key name exactly as COSMIC writes it (see docs/cosmic-keys.md).
+cosmic_custom_keybindings:
+  - name: "1Password Quick Access"
+    modifiers: [Ctrl, Shift]
+    key: space
+    command: "/usr/bin/1password --quick-access"
+  - name: "Open File Manager"
+    modifiers: [Super]
+    key: e
+    command: "cosmic-files"
+  - name: "Area Screenshot (annotate)"
+    modifiers: [Shift, Alt]
+    key: "4"
+    command: "/home/{{ local_user }}/.local/bin/area-screenshot-annotate"
+  - name: "Fullscreen Screenshot (to clipboard)"
+    modifiers: [Shift, Alt]
+    key: "3"
+    command: "/home/{{ local_user }}/.local/bin/fullscreen-screenshot-clip"

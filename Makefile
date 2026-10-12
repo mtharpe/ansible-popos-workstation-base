@@ -7,7 +7,7 @@ MOLECULE_ENV := ANSIBLE_HOME="$(ANSIBLE_HOME)" XDG_CACHE_HOME="$(XDG_CACHE_HOME)
 MOLECULE_GLOB_PODMAN := molecule/default/molecule.yml
 MOLECULE_GLOB_DOCKER := molecule/docker/molecule.yml
 
-.PHONY: lint all build reset test test-podman test-docker syntax-podman syntax-docker idempotence-podman idempotence-docker check-podman-deps check-docker-deps clean
+.PHONY: lint test-cosmic all build reset test test-podman test-docker syntax-podman syntax-docker idempotence-podman idempotence-docker check-podman-deps check-docker-deps clean
 
 # Static checks: yamllint, ansible-lint, playbook syntax, shellcheck, and the
 # repo's shell-level tests.
@@ -38,6 +38,12 @@ test: check-podman-deps
 	@echo "🚀 Running Molecule tests (podman/default)..."
 	$(MOLECULE_ENV) MOLECULE_GLOB="$(MOLECULE_GLOB_PODMAN)" molecule test -s default
 	@echo "✅ Molecule tests completed successfully."
+
+# Run Molecule tests for the cosmic role (docker driver, linux/amd64)
+test-cosmic: check-docker-deps
+	@echo "🚀 Running Molecule tests (docker/cosmic)..."
+	$(MOLECULE_ENV) MOLECULE_GLOB="molecule/cosmic/molecule.yml" molecule test -s cosmic
+	@echo "✅ Molecule cosmic tests completed successfully."
 
 # Run Molecule tests explicitly on podman scenario
 test-podman: check-podman-deps

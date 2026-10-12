@@ -1,0 +1,29 @@
+---
+- name: Check for the COSMIC compositor
+  ansible.builtin.stat:
+    path: /usr/bin/cosmic-comp
+  register: cosmic_comp_bin
+  tags: [cosmic]
+
+- name: Assert COSMIC is installed
+  ansible.builtin.assert:
+    that: cosmic_comp_bin.stat.exists
+    fail_msg: /usr/bin/cosmic-comp not found — the cosmic role needs the COSMIC desktop (Pop!_OS 24.04).
+    quiet: true
+  when: not popos_skip_preflight | default(false)
+  tags: [cosmic]
+
+- name: Apply COSMIC settings
+  ansible.builtin.include_tasks: settings.yml
+  vars:
+    cosmic_settings_batch: "{{ cosmic_settings }}"
+  tags: [cosmic, settings]
+
+- name: Apply panel, dock and tiling layout
+  ansible.builtin.import_tasks: layout.yml
+  tags: [cosmic, layout]
+
+- name: Apply custom keyboard shortcuts
+  ansible.builtin.import_tasks: keybindings.yml
+  when: cosmic_custom_keybindings | default([]) | length > 0
+  tags: [cosmic, keybindings]

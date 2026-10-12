@@ -1,0 +1,61 @@
+---
+- name: Verify the cosmic role
+  hosts: all
+  become: true
+  gather_facts: false
+  vars_files:
+    - ../../vars/vars.example.yml
+  vars:
+    shortcuts_file: "{{ cosmic_config_home }}/com.system76.CosmicSettings.Shortcuts/v1/custom"
+  tasks:
+    - name: Read each configured setting
+      ansible.builtin.slurp:
+        src: "{{ cosmic_config_home }}/{{ item.component }}/v{{ item.version }}/{{ item.key }}"
+      loop: "{{ cosmic_settings }}"
+      loop_control:
+        label: "{{ item.component }}/{{ item.key }}"
+      register: verify_settings
+
+    - name: Assert each setting file holds exactly its RON value
+      ansible.builtin.assert:
+        that: (item.content | b64decode) == item.item.value
+        fail_msg: "{{ item.item.key }}: got {{ item.content | b64decode }}"
+      loop: "{{ verify_settings.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Read panel entries and autotile
+      ansible.builtin.slurp:
+        src: "{{ cosmic_config_home }}/{{ item }}"
+      loop:
+        - com.system76.CosmicPanel/v1/entries
+        - com.system76.CosmicComp/v1/autotile
+      register: verify_layout
+
+    - name: Assert panel only, no dock, tiling off
+      ansible.builtin.assert:
+        that:
+          - (verify_layout.results[0].content | b64decode) == '["Panel"]'
+          - (verify_layout.results[1].content | b64decode) == 'false'
+
+    - name: Read the custom shortcuts file
+      ansible.builtin.slurp:
+        src: "{{ shortcuts_file }}"
+      register: verify_shortcuts
+
+    - name: Assert the file manager shortcut is rendered
+      ansible.builtin.assert:
+        that: >-
+          (verify_shortcuts.content | b64decode) is search(
+          '\(modifiers: \[Super\], key: "e", description: Some\("Open File Manager"\)\): Spawn\("cosmic-files"\),')
+
+    # Review Focus 2: root-owned config means COSMIC can't save GUI changes.
+    - name: Find anything under ~/.config/cosmic not owned by the user
+      ansible.builtin.command: find /home/{{ local_user }}/.config/cosmic ! -user {{ local_user }}
+      register: verify_foreign
+      changed_when: false
+
+    - name: Assert everything is owned by the user
+      ansible.builtin.assert:
+        that: verify_foreign.stdout == ''
+        fail_msg: "Not owned by {{ local_user }}: {{ verify_foreign.stdout }}"

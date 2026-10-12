@@ -1,0 +1,5 @@
+{
+{% for kb in cosmic_custom_keybindings %}
+    (modifiers: [{{ kb.modifiers | join(', ') }}], key: "{{ kb.key }}", description: Some("{{ kb.name | replace('"', '\\"') }}")): Spawn("{{ kb.command | replace('"', '\\"') }}"),
+{% endfor %}
+}

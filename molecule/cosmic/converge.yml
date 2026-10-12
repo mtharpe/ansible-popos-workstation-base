@@ -1,0 +1,30 @@
+---
+# Converges only the cosmic role against stock Ubuntu 24.04. Its config
+# writers are plain file operations, so they can be checked without a desktop;
+# anything needing a live session is gated on common_is_container.
+- name: Converge the cosmic role
+  hosts: all
+  become: true
+  gather_facts: true
+  vars_files:
+    - ../../vars/vars.example.yml
+
+  pre_tasks:
+    # set_fact outranks vars_files, which would otherwise win over play vars.
+    - name: Mark this as a container test
+      ansible.builtin.set_fact:
+        popos_skip_preflight: true
+        common_is_container: true
+
+    - name: Install what the cosmic role expects from common
+      ansible.builtin.apt:
+        name: [sudo, python3-psutil, git, curl, ca-certificates]
+        update_cache: true
+
+    - name: Ensure the test user exists
+      ansible.builtin.user:
+        name: "{{ local_user }}"
+        state: present
+
+  roles:
+    - role: cosmic
