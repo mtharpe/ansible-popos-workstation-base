@@ -1,132 +1,91 @@
-[![CircleCI](https://circleci.com/gh/mtharpe/ansible-ubuntu-workstation-base/tree/main.svg?style=svg)](https://circleci.com/gh/mtharpe/ansible-ubuntu-workstation-base/tree/main)
+# Pop!_OS Workstation Base
 
-# Ubuntu Workstation Base
+Ansible playbook that sets up a **Pop!_OS 24.04 LTS (COSMIC)** laptop for
+development and daily use. Sibling of
+[ansible-ubuntu-workstation-base](https://github.com/mtharpe/ansible-ubuntu-workstation-base)
+and [ansible-fedora-workstation-base](https://github.com/mtharpe/ansible-fedora-workstation-base):
+same tools, apps and shell setup, with the GNOME pieces translated to COSMIC.
 
-Ansible playbook and role collection that automates the setup of an **Ubuntu 24.04+** GNOME workstation for development and daily use.
+> **Status:** the COSMIC config keys in `vars/vars.example.yml` are
+> provisional until they are captured from a real Pop!_OS 24.04 install —
+> see `docs/cosmic-keys.md`. Everything else has been tested in containers.
 
 ## What this does
 
-Configures an Ubuntu workstation with:
-
-- **Common packages** — developer tooling, fonts, multimedia codecs, system utilities (`roles/common`)
-- **Third-party apps** — Chrome, VS Code, Slack, Zoom, Docker, etc., gated by feature flags (`roles/third-party`). Each install removes any conflicting snap of the same package first, so the apt/deb version is the one that runs.
-- **GNOME settings** — sensible dconf defaults, system-wide dark mode that also reaches legacy GTK2 and Qt apps, workspace layout, and custom keyboard shortcuts incl. screenshot-to-clipboard helpers (`gnome_custom_keybindings` in `vars/vars.yml`) (`roles/gnome`)
-- **Printing** — CUPS with broad driver coverage (Gutenprint/foomatic/HPLIP), the system-config-printer GUI, and automatic mDNS/IPP network printer discovery (`roles/common/tasks/printers.yml`)
-- **Shell setup** — bash or fish with TPM, Starship, FiraCode Nerd Font (toggle in `vars/vars.yml`)
-- **Hardening** — fail2ban with progressive bans (on by default), ufw desktop firewall, optional sshd hardening
-
-## Requirements
-
-- Ubuntu 24.04 or newer
-- A user account with sudo access
-- Internet access for package installs
+- **Common packages** — developer tooling, fonts, codecs, HashiCorp tools, 1Password (`roles/common`)
+- **Third-party apps** — Chrome, VS Code, Slack, Zoom, Twingate, Cider, Claude Code/Desktop, kubectl, electron web apps and more, each behind an `install_*` flag (`roles/third-party`)
+- **COSMIC settings** — dark mode, 12-hour clock, touchpad/mouse, window buttons, workspaces, top panel without dock, tiling off, custom shortcuts (`roles/cosmic`)
+- **Theming** — Colloid icons; dark mode that also reaches GTK2/GTK3, Qt and Electron apps
+- **Screenshots** — Shift+Alt+3 full screen to clipboard; Shift+Alt+4 area grab annotated in Satty
+- **Hardening** — fail2ban, ufw desktop firewall, optional sshd hardening
+- **Safety** — refuses to run on anything but Pop!_OS 24.04, and refuses a junk-app purge that would take `pop-desktop`/COSMIC with it
 
 ## Quick start
 
-1. Clone the repository:
+1. Install Pop!_OS 24.04 (tick "Encrypt drive" in the installer), log in once.
+2. Clone and run:
 
    ```sh
-   git clone https://github.com/mtharpe/ansible-ubuntu-workstation-base.git
-   cd ansible-ubuntu-workstation-base
-   ```
-
-2. Copy the example vars file and edit it to set your `local_user` and toggle features:
-
-   ```sh
-   cp vars/vars.example.yml vars/vars.yml
-   ```
-
-   ```yaml
-   local_user: yourusername
-   install_chrome: true
-   install_vscode: true
-   install_fish: true
-   ```
-
-   `vars/vars.yml` is gitignored so your personal toggles never get pushed.
-   Update `vars/vars.example.yml` when you want to change the sane defaults
-   that ship in the repo.
-
-3. Run the bootstrap script (installs Ansible if missing, applies the playbook):
-
-   ```sh
+   git clone https://github.com/mtharpe/ansible-popos-workstation-base.git
+   cd ansible-popos-workstation-base
+   cp vars/vars.example.yml vars/vars.yml   # edit toggles as needed
    ./run.sh
    ```
 
-   Or invoke ansible directly:
+3. Log out and back in (environment variables and some COSMIC applets only reload at login).
+4. If Twingate is enabled: `twingate setup`.
 
-   ```sh
-   sudo apt-get update && sudo apt-get install -y ansible
-   ansible-playbook --extra-vars "local_user=$USER" setup_workstation.yml
-   ```
+`run.sh` installs Ansible via pipx, adds a temporary passwordless-sudo drop-in, retries the playbook until it succeeds, then removes the drop-in. It needs ansible-core 2.19 or newer (pipx installs the latest).
+
+## Customising COSMIC
+
+COSMIC stores one setting per file under `~/.config/cosmic/<component>/v<N>/<key>`.
+`cosmic_settings` in `vars/vars.yml` lists the files this playbook writes;
+`docs/cosmic-keys.md` records where each value came from. To add a setting:
+`touch /tmp/marker`, change it in COSMIC Settings, find the file that changed
+with `find ~/.config/cosmic -newer /tmp/marker -type f`, and copy its
+component, version, key and contents into `cosmic_settings`.
+
+Re-running the playbook resets only the listed keys. **Custom shortcuts are
+the exception: `cosmic_custom_keybindings` replaces the whole custom-shortcuts
+file**, so add shortcuts there rather than in COSMIC Settings.
+
+## Not on COSMIC
+
+Behaviour from the Ubuntu/Fedora GNOME setup that has no COSMIC equivalent:
+
+- Fixed count of 5 workspaces (COSMIC workspaces are dynamic)
+- Alt+Tab switching applications rather than windows
+- Weather and world-clock locations
+- GNOME Shell extensions: just-perfection, auto-move-windows, power-profile-switcher, auto-select-headset, silent-cycle-current-app, chrome-pwa-grouper
+- GNOME font overrides (COSMIC's defaults are kept)
+- Multipass (snap-only; Pop!_OS has no snapd)
+- auto-cpufreq (Pop's system76-power already manages CPU power; the task refuses to install alongside it)
+
+Pending the key capture in `docs/cosmic-keys.md` (added if COSMIC has a key for them):
+
+- Battery percentage in the panel
+- Automatic timezone
+- Suppressing desktop notifications from terminal apps
 
 ## Feature flags
 
-All toggles live in `vars/vars.yml`. The most useful ones:
+See `vars/vars.example.yml` — every `install_*` flag is documented inline.
+Satty is pinned to 0.20.1: newer release binaries need glibc 2.43 and Pop!_OS
+24.04 has 2.39.
 
-| Flag | Default | What it controls |
-|------|---------|------------------|
-| `install_chrome` | `true` | Google Chrome browser |
-| `install_vscode` | `true` | Visual Studio Code |
-| `install_slack` | `true` | Slack desktop client |
-| `install_zoom` | `true` | Zoom client |
-| `install_docker` | `false` | docker.io + docker-compose (otherwise podman is the default) |
-| `install_gcloud` | `false` | Google Cloud SDK + kubectl |
-| `install_ansible` | `false` | Ansible (apt) for running playbooks locally |
-| `install_claude` | `true` | Claude Code CLI (official installer to `~/.local/bin`) |
-| `install_claude_desktop` | `true` | Claude Desktop + cowork (community APT repo; bubblewrap sandbox + AppArmor `userns` profile for bwrap) |
-| `install_kubectl` | `true` | kubectl from the official Kubernetes apt repo (`pkgs.k8s.io`) |
-| `install_multipass` | `true` | Multipass via snap (snap is the only Linux distribution channel) |
-| `install_fish` | `true` | Fish shell + Pure prompt + Fisher |
-| `install_bash` | `false` | Bash dotfiles |
-| `install_nerd_font` | `true` | FiraCode Nerd Font for prompts/icons |
-| `install_eza` | `true` | `eza` (modern `ls` replacement) |
-| `install_printers` | `true` | CUPS print stack — drivers, system-config-printer GUI, network discovery |
-| `enable_sshd` | `false` | Enable and harden sshd |
-| `enable_fail2ban` | `true` | fail2ban with progressive bans + ufw integration (on by default) |
+## Testing
 
-## Testing with Molecule
-
-Two Molecule scenarios converge the playbook against a containerized Ubuntu 24.04. The role detects `is_container` from `ansible_facts['virtualization_type']` and skips the `gnome` role plus any task that would try to start systemd services (ssh, fail2ban, docker, cups) or hit netfilter (ufw), so container runs stay fast and don't fail on operations that aren't possible in an unprivileged container.
-
-```sh
-make test-podman          # full create/converge/idempotence/verify on podman
-make test-docker          # same on docker
-make syntax-podman        # parse-only check
-make idempotence-podman   # converge twice, expect zero changes the second time
-```
+- `make lint` — yamllint, ansible-lint, playbook syntax check, shellcheck, `tests/no-ubuntu-leftovers.sh`, `tests/vm-test-dryrun.sh`
+- `make test-docker` — Molecule converge + idempotence + verify of `common` and `third-party` on an Ubuntu 24.04 (amd64) container, including the junk-purge guard and the Twingate repo
+- `make test-cosmic` — Molecule for the `cosmic` role: config files and ownership, layout, shortcuts, theming, Colloid icons, screenshot helpers and Satty
+- `ANSIBLE_ROLES_PATH=roles ansible-playbook tests/preflight.yml` — must fail on a non-Pop host
+- Full run on a Pop!_OS VM with `scripts/vm-test.sh` (`fetch`, `install`, `run`, `provision`, `reset`). Needs QEMU; fast on a Linux x86_64 host with KVM, very slow under emulation on Apple Silicon.
 
 ## Linting and CI
 
-CircleCI runs four checks on every push (see `.circleci/config.yml`):
-
-- `ansible-lint` — playbook & role linting
-- `yamllint` — YAML quality
-- `ansible-playbook --syntax-check` — playbook parses
-- `shellcheck` — shell scripts
-
-Run them locally:
-
-```sh
-ansible-lint .
-yamllint .
-shellcheck run.sh
-ansible-playbook --syntax-check setup_workstation.yml
-```
-
-## Customization
-
-- Add/remove packages: `roles/common/tasks/packages.yml`
-- System tweaks: `roles/common/tasks/system.yml` and `roles/common/tasks/harden.yml`
-- Drop dotfiles into `templates/` and reference them from a role task
-- Snap-conflict removal: include `roles/third-party/tasks/remove-snap.yml` from any new install task and pass `snap_names: [<name>, ...]` — it's a no-op if snapd isn't present or the snap isn't installed
-
-## Related
-
-- [`ansible-fedora-workstation-base`](https://github.com/mtharpe/ansible-fedora-workstation-base) — Fedora 43+
-- [`ansible-ubuntu-workstation-base`](https://github.com/mtharpe/ansible-ubuntu-workstation-base) — Ubuntu 24.04+ (this repo)
-- [`ansible-manjaro-workstation-base`](https://github.com/mtharpe/ansible-manjaro-workstation-base) — Manjaro/Arch
+CircleCI runs ansible-lint, yamllint, `ansible-playbook --syntax-check`, Molecule syntax for the default scenario, and shellcheck.
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT
