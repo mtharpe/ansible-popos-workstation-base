@@ -15,7 +15,8 @@ lint:
 	yamllint .
 	ansible-lint .
 	ansible-playbook --syntax-check setup_workstation.yml
-	shellcheck run.sh tests/*.sh
+	shellcheck run.sh scripts/*.sh tests/*.sh
+	tests/vm-test-dryrun.sh
 	tests/no-ubuntu-leftovers.sh
 
 # Default target
